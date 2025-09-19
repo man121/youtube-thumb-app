@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+html_content = """<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -50,7 +50,7 @@
 <body>
   <div class="header">
     <h1>YouTube Thumbnail Generator</h1>
-    <div class="muted">Single‑file HTML • 1280×720 export • brand overlays • AI background via <code>/api/openai-image</code></div>
+    <div class="muted">Single-file HTML • 1280×720 export • brand overlays • AI background via <code>/api/openai-image</code></div>
   </div>
 
   <div class="container">
@@ -61,7 +61,7 @@
         <div class="mb-3">
           <label for="ytUrl">YouTube URL or ID</label>
           <div class="row">
-            <input id="ytUrl" type="text" placeholder="https://youtube.com/watch?v=... or 11‑char ID" />
+            <input id="ytUrl" type="text" placeholder="https://youtube.com/watch?v=... or 11-char ID" />
             <button id="btnUseYT" class="btn">Use video thumbnail</button>
           </div>
           <div class="notice">We fetch the public preview from <code>img.youtube.com</code>. Export may fail if CORS blocks the canvas. If that happens, upload a screenshot or use AI background.</div>
@@ -198,15 +198,15 @@
         const s = (input || '').trim();
         if (/^[A-Za-z0-9_-]{11}$/.test(s)) return s;
         const url = new URL(s);
-        const host = url.hostname.replace(/^www\./, '');
+        const host = url.hostname.replace(/^www\\./, '');
         if (host === 'youtu.be') {
-          const seg = url.pathname.replace(/^\//, '').split('/')[0];
+          const seg = url.pathname.replace(/^\\//, '').split('/')[0];
           return /^[A-Za-z0-9_-]{11}$/.test(seg) ? seg : null;
         }
         if (host.endsWith('youtube.com')) {
           const v = url.searchParams.get('v');
           if (v && /^[A-Za-z0-9_-]{11}$/.test(v)) return v;
-          const m = url.pathname.match(/\/(shorts|embed|live)\/([A-Za-z0-9_-]{11})(?:\b|\/|$)/);
+          const m = url.pathname.match(/\\/(shorts|embed|live)\\/([A-Za-z0-9_-]{11})(?:\\b|\\/|$)/);
           if (m) return m[2];
         }
         return null;
@@ -262,7 +262,7 @@
       if (!text || !text.trim()) return [];
       ctx.save();
       ctx.font = font;
-      const words = text.split(/\s+/);
+      const words = text.split(/\\s+/);
       const lines = [];
       let line = '';
       for (const w of words) {
@@ -426,7 +426,7 @@
 
     $('btnUseYT').addEventListener('click', async () => {
       const id = extractYouTubeId($('ytUrl').value);
-      if (!id) { alert('Please paste a full YouTube URL or a valid 11‑char video ID.'); return; }
+      if (!id) { alert('Please paste a full YouTube URL or a valid 11-char video ID.'); return; }
       const url = `https://img.youtube.com/vi/${id}/maxresdefault.jpg`;
       try {
         // Note: CORS is required for exporting with remote images.
@@ -475,7 +475,7 @@
     // Templates
     $('tplElementary').addEventListener('click', () => {
       state.primary = '#0ea5e9'; state.secondary = '#082f49'; state.text = '#ffffff';
-      state.title = 'Ms. Rivera\'s Art Class'; state.subtitle = 'Making Waves with Creativity';
+      state.title = 'Ms. Rivera\\'s Art Class'; state.subtitle = 'Making Waves with Creativity';
       state.layout = 'left'; state.strokeWidth = 8; state.shadow = 'on';
       $('title').value = state.title; $('subtitle').value = state.subtitle;
       $('colorPrimary').value = state.primary; $('colorSecondary').value = state.secondary; $('colorText').value = state.text;
@@ -542,8 +542,7 @@
         return Math.round(r.sWidth) === 400 && Math.round(r.sHeight) === 100; // draws full height, crops width internally
       });
 
-      const out = tests.map(x => `${x.pass ? '✅' : '❌'} ${x.name}${x.pass ? '' : ' → ' + x.out}`).join('
-');
+      const out = tests.map(x => `${x.pass ? '✅' : '❌'} ${x.name}${x.pass ? '' : ' → ' + x.out}`).join('\n');
       document.getElementById('tests').textContent = out;
       return tests.every(t => t.pass);
     }
@@ -554,3 +553,86 @@
   </script>
 </body>
 </html>
+"""
+
+# Write the HTML file
+html_path = os.path.join(public_dir, "index.html")
+with open(html_path, "w", encoding="utf-8") as f:
+    f.write(html_content)
+
+# === Netlify function and config ===
+func_js = """// netlify/functions/openai-image.js
+exports.handler = async (event) => {
+  if (event.httpMethod !== 'POST') {
+    return { statusCode: 405, body: 'Method Not Allowed' };
+  }
+  try {
+    const { prompt } = JSON.parse(event.body || '{}');
+    const body = { model: 'gpt-image-1', prompt: prompt || 'high-contrast abstract ocean waves, vivid, cinematic lighting', size: '1280x720', n: 1 };
+    const r = await fetch('https://api.openai.com/v1/images/generations', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    if (!r.ok) return { statusCode: 500, body: await r.text() };
+    const data = await r.json();
+    const image = data?.data?.[0];
+    let buf = null;
+    if (image?.b64_json) {
+      buf = Buffer.from(image.b64_json, 'base64');
+    } else if (image?.url) {
+      const proxied = await fetch(image.url);
+      const ab = await proxied.arrayBuffer();
+      buf = Buffer.from(ab);
+    }
+    if (!buf) return { statusCode: 500, body: 'No image returned' };
+    return {
+      statusCode: 200,
+      headers: { 'Content-Type': 'image/png', 'Cache-Control': 'no-store' },
+      body: buf.toString('base64'),
+      isBase64Encoded: true
+    };
+  } catch (e) {
+    return { statusCode: 500, body: String(e) };
+  }
+};
+"""
+
+with open(os.path.join(functions_dir, "openai-image.js"), "w", encoding="utf-8") as f:
+    f.write(func_js)
+
+netlify_toml = """[build]
+  publish = "public"
+  command = ""
+
+[functions]
+  node_bundler = "esbuild"
+
+[[redirects]]
+  from = "/api/openai-image"
+  to = "/.netlify/functions/openai-image"
+  status = 200
+"""
+with open(os.path.join(base_dir, "netlify.toml"), "w", encoding="utf-8") as f:
+    f.write(netlify_toml)
+
+# Also provide a single HTML for convenience at root
+single_html_path = os.path.join(base_dir, "YouTube_Thumbnail_Generator.html")
+with open(single_html_path, "w", encoding="utf-8") as f:
+    f.write(html_content)
+
+# Create a starter zip containing the correct structure
+zip_path = os.path.join(base_dir, "youtube-thumb-netlify-starter.zip")
+with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED) as z:
+    z.write(html_path, arcname="public/index.html")
+    z.write(os.path.join(base_dir, "netlify.toml"), arcname="netlify.toml")
+    z.write(os.path.join(functions_dir, "openai-image.js"), arcname="netlify/functions/openai-image.js")
+
+# Return file paths for the user
+{"html": single_html_path, "zip": zip_path, "public_index": html_path}
+
+Result
+
+{'html': '/mnt/data/YouTube_Thumbnail_Generator.html',
+ 'zip': '/mnt/data/youtube-thumb-netlify-starter.zip',
+ 'public_index': '/mnt/data/public/index.html'}
