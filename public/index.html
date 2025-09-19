@@ -381,7 +381,7 @@ html_content = """<!DOCTYPE html>
       layout: 'left',
       fit: 'cover', // cover | contain | stretch
       bgImg: null,
-      logoImg: null,
+      logoImg: null
     };
 
     const canvas = $('canvas');
@@ -414,7 +414,7 @@ html_content = """<!DOCTYPE html>
     });
 
     $('fileLogo').addEventListener('change', async (e) => {
-      const file = e.target.files && e.target.files[0];  // <-- FIXED (&&)
+      const file = e.target.files && e.target.files[0];
       if (!file) { state.logoImg = null; draw(); return; }
       const reader = new FileReader();
       reader.onload = async () => {
@@ -438,7 +438,7 @@ html_content = """<!DOCTYPE html>
     });
 
     $('btnAI').addEventListener('click', async () => {
-      const prompt = $('aiPrompt').value || 'high-contrast abstract ocean waves, vivid, cinematic lighting';  // <-- FIXED (||)
+      const prompt = $('aiPrompt').value || 'high-contrast abstract ocean waves, vivid, cinematic lighting';
       try {
         const res = await fetch('/api/openai-image', {
           method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt })
@@ -475,7 +475,7 @@ html_content = """<!DOCTYPE html>
     // Templates
     $('tplElementary').addEventListener('click', () => {
       state.primary = '#0ea5e9'; state.secondary = '#082f49'; state.text = '#ffffff';
-      state.title = 'Ms. Rivera\\'s Art Class'; state.subtitle = 'Making Waves with Creativity';
+      state.title = "Ms. Rivera's Art Class"; state.subtitle = 'Making Waves with Creativity';
       state.layout = 'left'; state.strokeWidth = 8; state.shadow = 'on';
       $('title').value = state.title; $('subtitle').value = state.subtitle;
       $('colorPrimary').value = state.primary; $('colorSecondary').value = state.secondary; $('colorText').value = state.text;
@@ -522,7 +522,7 @@ html_content = """<!DOCTYPE html>
         ['https://www.youtube.com/embed/dQw4w9WgXcQ', 'dQw4w9WgXcQ'],
         ['   dQw4w9WgXcQ   ', 'dQw4w9WgXcQ'],
         ['not-a-url-or-id', null],
-        ['short-id', null],
+        ['short-id', null]
       ];
       for (const [inp, expected] of cases) {
         t(`extractYouTubeId(${JSON.stringify(inp)})`, () => extractYouTubeId(inp) === expected);
@@ -542,7 +542,7 @@ html_content = """<!DOCTYPE html>
         return Math.round(r.sWidth) === 400 && Math.round(r.sHeight) === 100; // draws full height, crops width internally
       });
 
-      const out = tests.map(x => `${x.pass ? '✅' : '❌'} ${x.name}${x.pass ? '' : ' → ' + x.out}`).join('\n');
+      const out = tests.map(x => `${x.pass ? '✅' : '❌'} ${x.name}${x.pass ? '' : ' → ' + x.out}`).join('\\n');
       document.getElementById('tests').textContent = out;
       return tests.every(t => t.pass);
     }
