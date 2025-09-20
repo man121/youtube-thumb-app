@@ -3,7 +3,7 @@ const https = require("https");
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
-function postJSON({ hostname, path, body, headers = {}, timeoutMs = 25000 }) {
+function postJSON({ hostname, path, body, headers = {}, timeoutMs = 16000 }) {
   const payload = JSON.stringify(body);
   return new Promise((resolve, reject) => {
     const req = https.request(
@@ -11,8 +11,7 @@ function postJSON({ hostname, path, body, headers = {}, timeoutMs = 25000 }) {
           "Content-Type": "application/json",
           "Content-Length": Buffer.byteLength(payload),
           ...headers
-        }
-      },
+        }},
       (res) => {
         let data = "";
         res.on("data", (c) => (data += c));
@@ -26,12 +25,16 @@ function postJSON({ hostname, path, body, headers = {}, timeoutMs = 25000 }) {
   });
 }
 
-function downloadBuffer(urlStr, timeoutMs = 25000) {
+function downloadBuffer(urlStr, timeoutMs = 16000) {
   return new Promise((resolve, reject) => {
     const u = new URL(urlStr);
     const req = https.get(
       { hostname: u.hostname, path: u.pathname + u.search, protocol: u.protocol },
       (res) => {
+        if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+          // follow one redirect
+          return downloadBuffer(res.headers.location, timeoutMs).then(resolve).catch(reject);
+        }
         const chunks = [];
         res.on("data", (c) => chunks.push(c));
         res.on("end", () => resolve(Buffer.concat(chunks)));
@@ -56,7 +59,7 @@ async function generateImage({ prompt, size }) {
     path: "/v1/images/generations",
     body: { model: "gpt-image-1", prompt, size, n: 1 },
     headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}` },
-    timeoutMs: 25000
+    timeoutMs: 16000
   });
 
   if (resp.status < 200 || resp.status >= 300) {
@@ -93,44 +96,38 @@ exports.handler = async (event) => {
     const { prompt } = JSON.parse(event.body || "{}");
     const userPrompt = prompt || "high-contrast abstract ocean waves, vivid, cinematic lighting";
 
-    // Try landscape first, then smaller square as fallback (faster).
-    const sizes = ["1536x1024", "1024x1024"];
+    // Keep it fast: single size (1024x1024). Retry once with short backoff.
+    const size = "1024x1024";
 
-    let lastErr = null;
-    for (let i = 0; i < sizes.length; i++) {
-      const size = sizes[i];
-      for (let attempt = 1; attempt <= 2; attempt++) {
-        try {
-          const buf = await generateImage({ prompt: userPrompt, size });
-          return {
-            statusCode: 200,
-            headers: { "Content-Type": "image/png", "Cache-Control": "no-store" },
-            body: buf.toString("base64"),
-            isBase64Encoded: true
-          };
-        } catch (e) {
-          lastErr = e;
-          const status = e.status || 0;
-          const bodyText = e.body || String(e);
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        const buf = await generateImage({ prompt: userPrompt, size });
+        return {
+          statusCode: 200,
+          headers: { "Content-Type": "image/png", "Cache-Control": "no-store" },
+          body: buf.toString("base64"),
+          isBase64Encoded: true
+        };
+      } catch (e) {
+        const status = e.status || 0;
+        const bodyText = e.body || String(e);
 
-          // Pass through known, non-retriable client errors clearly
-          if (status === 401) return { statusCode: 401, body: "Invalid or missing API key" };
-          if (status === 403 && /must be verified/i.test(bodyText)) {
-            return { statusCode: 403, body: "Org not verified for gpt-image-1 yet. Verify in OpenAI dashboard and retry." };
-          }
-          if (status === 402 || /billing_hard_limit_reached/i.test(bodyText)) {
-            return { statusCode: 402, body: "OpenAI billing hard limit reached on this account." };
-          }
-          if (!shouldRetry(status, bodyText, e)) break;
-
-          // Backoff: 0.8s then 1.6s
-          await sleep(800 * attempt);
+        if (status === 401) return { statusCode: 401, body: "Invalid or missing API key" };
+        if (status === 403 && /must be verified/i.test(bodyText)) {
+          return { statusCode: 403, body: "Org not verified for gpt-image-1 yet. Verify in OpenAI dashboard and retry." };
         }
+        if (status === 402 || /billing_hard_limit_reached/i.test(bodyText)) {
+          return { statusCode: 402, body: "OpenAI billing hard limit reached on this account." };
+        }
+        if (!shouldRetry(status, bodyText, e)) {
+          // Non-retriable → surface upstream error
+          return { statusCode: Math.max(status, 500), body: `OpenAI error ${status || ''}: ${bodyText}` };
+        }
+        await sleep(800 * attempt); // quick backoff
       }
-      // Next size
     }
 
-    return { statusCode: 504, body: String(lastErr || "Image generation timed out") };
+    return { statusCode: 504, body: "Upstream timed out generating image (try again or use gradient fallback)" };
   } catch (e) {
     console.error(e);
     return { statusCode: 500, body: String(e) };
