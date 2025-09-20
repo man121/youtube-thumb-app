@@ -6,7 +6,7 @@
   node_bundler = "esbuild"
   included_files = ["netlify/functions/**"]
 
-# Per-function config (this is the correct place for timeout)
+# Per-function settings (valid syntax)
 [functions."openai-image"]
   timeout = 26
 
@@ -14,4 +14,3 @@
   from = "/api/openai-image"
   to = "/.netlify/functions/openai-image"
   status = 200
-
