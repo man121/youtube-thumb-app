@@ -6,7 +6,6 @@
   node_bundler = "esbuild"
   included_files = ["netlify/functions/**"]
 
-# Per-function settings (valid syntax)
 [functions."openai-image"]
   timeout = 26
 
