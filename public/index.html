@@ -243,31 +243,34 @@
       reader.readAsDataURL(file);
     });
 
-    $('btnUseYT').addEventListener('click',async ()=>{
-      const id=extractYouTubeId($('ytUrl').value);
-      if(!id){ alert('Please paste a full YouTube URL or a valid 11-char video ID.'); return; }
-      const url=`https://img.youtube.com/vi/${id}/maxresdefault.jpg`;
-      try{ state.bgImg=await loadImage(url,{crossOrigin:'anonymous'}); draw(); }
-      catch{ alert('Failed to load YouTube thumbnail. Try uploading a screenshot instead.'); }
+$('btnAI').addEventListener('click', async () => {
+  const prompt = $('aiPrompt').value || 'high-contrast abstract ocean waves, vivid, cinematic lighting';
+  try {
+    const res = await fetch('/api/openai-image', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt })
     });
 
-    $('btnAI').addEventListener('click',async ()=>{
-      const prompt=$('aiPrompt').value || 'high-contrast abstract ocean waves, vivid, cinematic lighting';
-      try{
-        const res=await fetch('/api/openai-image',{ method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({prompt}) });
-        if(!res.ok) throw new Error('Image generation failed');
-        const blob=await res.blob(); const url=URL.createObjectURL(blob);
-        try{ state.bgImg=await loadImage(url); draw(); } finally { setTimeout(()=>URL.revokeObjectURL(url),2000); }
-      }catch(e){ console.error(e); alert('Could not generate an AI background. Check your /api/openai-image logs.'); }
-    });
+    if (!res.ok) {
+      const txt = await res.text();                 // <— show server error
+      throw new Error(`Server responded ${res.status}: ${txt}`);
+    }
 
-    $('btnExport').addEventListener('click',()=>{
-      try{
-        const dataUrl=canvas.toDataURL('image/png');
-        const a=document.createElement('a'); a.href=dataUrl; a.download=`thumbnail-${Date.now()}.png`;
-        document.body.appendChild(a); a.click(); document.body.removeChild(a);
-      }catch{ alert('Export failed. If background came from YouTube, try Upload or AI Generate before exporting.'); }
-    });
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    try {
+      state.bgImg = await loadImage(url);
+      draw();
+    } finally {
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+    }
+  } catch (e) {
+    console.error(e);
+    alert(`Could not generate an AI background.\n${e.message}`);
+  }
+});
+
 
     // Templates
     $('tplElementary').addEventListener('click',()=>{
