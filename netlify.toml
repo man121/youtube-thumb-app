@@ -4,13 +4,19 @@
 
 [functions]
   node_bundler = "esbuild"
-  included_files = ["netlify/functions/**"]
+  directory = "netlify/functions"   # <-- makes the folder explicit
 
-[functions."openai-image"]
+[functions."img-gen"]
   timeout = 26
 
-# Optional redirect (frontend already calls the direct path first)
+# Optional shortcut for key check
+[[redirects]]
+  from = "/api/key-check"
+  to = "/.netlify/functions/key-check"
+  status = 200
+
+# Optional: keep old route for legacy frontends
 [[redirects]]
   from = "/api/openai-image"
-  to = "/.netlify/functions/openai-image"
+  to = "/.netlify/functions/img-gen"
   status = 200
