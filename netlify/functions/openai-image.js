@@ -5,16 +5,31 @@ exports.handler = async (event) => {
   }
   try {
     const { prompt } = JSON.parse(event.body || '{}');
-    const body = { model: 'gpt-image-1', prompt: prompt || 'high-contrast abstract ocean waves, vivid, cinematic lighting', size: '1280x720', n: 1 };
+    const body = {
+      model: 'gpt-image-1',
+      prompt: prompt || 'high-contrast abstract ocean waves, vivid, cinematic lighting',
+      size: '1280x720',
+      n: 1
+    };
+
     const r = await fetch('https://api.openai.com/v1/images/generations', {
       method: 'POST',
-      headers: { 'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`, 'Content-Type': 'application/json' },
+      headers: {
+        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+        'Content-Type': 'application/json'
+      },
       body: JSON.stringify(body)
     });
-    if (!r.ok) return { statusCode: 500, body: await r.text() };
+
+    if (!r.ok) {
+      const errText = await r.text();
+      return { statusCode: 500, body: errText };
+    }
+
     const data = await r.json();
     const image = data?.data?.[0];
     let buf = null;
+
     if (image?.b64_json) {
       buf = Buffer.from(image.b64_json, 'base64');
     } else if (image?.url) {
@@ -22,7 +37,9 @@ exports.handler = async (event) => {
       const ab = await proxied.arrayBuffer();
       buf = Buffer.from(ab);
     }
+
     if (!buf) return { statusCode: 500, body: 'No image returned' };
+
     return {
       statusCode: 200,
       headers: { 'Content-Type': 'image/png', 'Cache-Control': 'no-store' },
