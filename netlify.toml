@@ -9,6 +9,7 @@
 [functions."openai-image"]
   timeout = 26
 
+# Optional redirect (frontend already calls the direct path first)
 [[redirects]]
   from = "/api/openai-image"
   to = "/.netlify/functions/openai-image"
