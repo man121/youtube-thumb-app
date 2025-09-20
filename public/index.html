@@ -354,17 +354,72 @@
       draw();
     });
 
-    // Tests
-    function runTests(){
-      const tests=[]; const t=(n,f)=>{try{const r=f();tests.push({n,ok:r===true});}catch{tests.push({n,ok:false});}};
-      const cases=[['dQw4w9WgXcQ','dQw4w9WgXcQ'],['https://www.youtube.com/watch?v=dQw4w9WgXcQ','dQw4w9WgXcQ'],['https://youtu.be/dQw4w9WgXcQ','dQw4w9WgXcQ'],['https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=60s','dQw4w9WgXcQ'],['https://m.youtube.com/watch?v=dQw4w9WgXcQ','dQw4w9WgXcQ'],['https://www.youtube.com/shorts/dQw4w9WgXcQ?si=abc','dQw4w9WgXcQ'],['https://www.youtube.com/embed/dQw4w9WgXcQ','dQw4w9WgXcQ'],['   dQw4w9WgXcQ   ','dQw4w9WgXcQ'],['not-a-url-or-id',null],['short-id',null]];
-      for(const [inp,exp] of cases){t(`extract(${inp})`,()=>extractYouTubeId(inp)===exp);}
-      t('stretch',()=>{const r=coverContainRect(100,50,200,100,'stretch');return r.dWidth===200&&r.dHeight===100;});
-      t('contain tall',()=>{const r=coverContainRect(100,200,200,100,'contain');return r.dx===50&&r.dy===0&&Math.round(r.dWidth)===100&&Math.round(r.dHeight)===100;});
-      t('cover wide',()=>{const r=coverContainRect(400,100,200,100,'cover');return Math.round(r.sWidth)===400&&Math.round(r.sHeight)===100;});
-      $('tests').textContent=tests.map(x=>`${x.ok?'✅':'❌'} test`).join('\n');
-      return tests.every(x=>x.ok);
+  <script>
+  function runTests(){
+    const tests = [];
+    const t = (name, fn) => {
+      try { tests.push({ name, ok: fn() === true }); }
+      catch (e) { tests.push({ name, ok: false, err: String(e) }); }
+    };
+
+    // extractYouTubeId cases (unchanged)
+    const cases = [
+      ['dQw4w9WgXcQ','dQw4w9WgXcQ'],
+      ['https://www.youtube.com/watch?v=dQw4w9WgXcQ','dQw4w9WgXcQ'],
+      ['https://youtu.be/dQw4w9WgXcQ','dQw4w9WgXcQ'],
+      ['https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=60s','dQw4w9WgXcQ'],
+      ['https://m.youtube.com/watch?v=dQw4w9WgXcQ','dQw4w9WgXcQ'],
+      ['https://www.youtube.com/shorts/dQw4w9WgXcQ?si=abc','dQw4w9WgXcQ'],
+      ['https://www.youtube.com/embed/dQw4w9WgXcQ','dQw4w9WgXcQ'],
+      ['   dQw4w9WgXcQ   ','dQw4w9WgXcQ'],
+      ['not-a-url-or-id',null],
+      ['short-id',null],
+    ];
+    for (const [inp, exp] of cases) {
+      t(`extractYouTubeId(${JSON.stringify(inp)}) → ${exp}`, () => extractYouTubeId(inp) === exp);
     }
+
+    // Geometry: stretch (sanity)
+    t('coverContainRect: stretch fills full destination', () => {
+      const r = coverContainRect(100, 50, 200, 100, 'stretch');
+      return r.dx === 0 && r.dy === 0 && r.dWidth === 200 && r.dHeight === 100;
+    });
+
+    // Geometry: contain (tall src inside landscape dst) — CORRECTED
+    // sr = 0.5, dr = 2 → dH = 100, dW = 50, centered horizontally (dx = 75)
+    t('contain: tall 100×200 → into 200×100 gives 50×100 @ dx=75,dy=0', () => {
+      const r = coverContainRect(100, 200, 200, 100, 'contain');
+      return r.dx === 75 && r.dy === 0 && Math.round(r.dWidth) === 50 && Math.round(r.dHeight) === 100;
+    });
+
+    // Geometry: cover (very wide src) — CORRECTED
+    // sr = 4, dr = 2 → crop width in source: sW = 200, sH = 100, sx = 100
+    t('cover: wide 400×100 → into 200×100 crops source to 200×100 @ sx=100', () => {
+      const r = coverContainRect(400, 100, 200, 100, 'cover');
+      return Math.round(r.sWidth) === 200 && Math.round(r.sHeight) === 100 && Math.round(r.dx) === 0 && Math.round(r.dy) === 0;
+    });
+
+    // Extra Geometry: contain (wide src into portrait dst)
+    // sr = 2, dr = 0.5 → dW = 100, dH = 50, centered vertically (dy = 75)
+    t('contain: wide 200×100 → into 100×200 gives 100×50 @ dx=0,dy=75', () => {
+      const r = coverContainRect(200, 100, 100, 200, 'contain');
+      return r.dx === 0 && r.dy === 75 && Math.round(r.dWidth) === 100 && Math.round(r.dHeight) === 50;
+    });
+
+    // Extra Geometry: cover (tall src into landscape dst)
+    // sr = 0.25, dr = 2 → crop source height: sW = 100, sH ≈ 50, sy = 175
+    t('cover: tall 100×400 → into 200×100 crops source height to ~50 (sy≈175)', () => {
+      const r = coverContainRect(100, 400, 200, 100, 'cover');
+      return Math.round(r.sWidth) === 100 && Math.round(r.sHeight) === 50 && Math.round(r.dx) === 0 && Math.round(r.dy) === 0;
+    });
+
+    // Render results with names
+    document.getElementById('tests').textContent =
+      tests.map(x => `${x.ok ? '✅' : '❌'} ${x.name || 'test'}`).join('\n');
+
+    return tests.every(x => x.ok);
+  }
+</script>
 
     draw(); runTests();
   </script>
