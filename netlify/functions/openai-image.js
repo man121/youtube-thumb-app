@@ -5,11 +5,16 @@ function postJSON(hostname, path, body, headers = {}) {
   const payload = JSON.stringify(body);
   return new Promise((resolve, reject) => {
     const req = https.request(
-      { hostname, path, method: "POST", headers: {
-        "Content-Type": "application/json",
-        "Content-Length": Buffer.byteLength(payload),
-        ...headers,
-      }},
+      {
+        hostname,
+        path,
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Content-Length": Buffer.byteLength(payload),
+          ...headers,
+        },
+      },
       (res) => {
         let data = "";
         res.on("data", (c) => (data += c));
@@ -25,14 +30,16 @@ function postJSON(hostname, path, body, headers = {}) {
 function downloadBuffer(urlStr) {
   return new Promise((resolve, reject) => {
     const u = new URL(urlStr);
-    https.get(
-      { hostname: u.hostname, path: u.pathname + u.search, protocol: u.protocol },
-      (res) => {
-        const chunks = [];
-        res.on("data", (c) => chunks.push(c));
-        res.on("end", () => resolve(Buffer.concat(chunks)));
-      }
-    ).on("error", reject);
+    https
+      .get(
+        { hostname: u.hostname, path: u.pathname + u.search, protocol: u.protocol },
+        (res) => {
+          const chunks = [];
+          res.on("data", (c) => chunks.push(c));
+          res.on("end", () => resolve(Buffer.concat(chunks)));
+        }
+      )
+      .on("error", reject);
   });
 }
 
@@ -48,10 +55,11 @@ exports.handler = async (event) => {
       return { statusCode: 500, body: "Missing OPENAI_API_KEY env var" };
     }
 
+    // Use a supported size (landscape). 16:9 export still works via the canvas.
     const body = {
       model: "gpt-image-1",
       prompt: prompt || "high-contrast abstract ocean waves, vivid, cinematic lighting",
-      size: "1280x720",
+      size: "1536x1024", // <-- FIXED: valid size
       n: 1,
     };
 
@@ -62,7 +70,6 @@ exports.handler = async (event) => {
       { Authorization: `Bearer ${process.env.OPENAI_API_KEY}` }
     );
 
-    // Surface OpenAI errors directly
     if (resp.status < 200 || resp.status >= 300) {
       return { statusCode: 500, body: `OpenAI error ${resp.status}: ${resp.body}` };
     }
@@ -88,7 +95,6 @@ exports.handler = async (event) => {
       isBase64Encoded: true,
     };
   } catch (e) {
-    // This shows up in Function logs AND returns to the browser
     console.error(e);
     return { statusCode: 500, body: String(e) };
   }
