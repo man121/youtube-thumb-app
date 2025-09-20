@@ -4,8 +4,10 @@
 
 [functions]
   node_bundler = "esbuild"
+  timeout = 26  # extend function runtime
 
 [[redirects]]
   from = "/api/openai-image"
   to = "/.netlify/functions/openai-image"
   status = 200
+
