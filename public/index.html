@@ -58,7 +58,7 @@
         <div class="btnbar" style="margin-top:8px">
           <button id="btnAI" class="btn">Generate (OpenAI Images)</button>
         </div>
-        <div class="notice">Requires <code>OPENAI_API_KEY</code> in Netlify and the function in <code>netlify/functions/openai-image.js</code>.</div>
+        <div class="notice">Requires <code>OPENAI_API_KEY</code> in Netlify and <code>netlify/functions/openai-image.js</code>.</div>
       </div>
 
       <div class="mb-3" style="border-top:1px solid #e5e7eb; padding-top: 12px;">
@@ -274,7 +274,24 @@
       draw();
     });
 
-    // AI Generate — show exact server error text
+    // Prompt → palette gradient fallback
+    function applyPromptPalette(prompt) {
+      const p = (prompt || "").toLowerCase();
+      const palettes = [
+        { match: /cyber|neon|punk/,      primary: "#ff006e", secondary: "#3a0ca3" },
+        { match: /ocean|wave|blue/,      primary: "#0ea5e9", secondary: "#082f49" },
+        { match: /forest|green|nature/,  primary: "#22c55e", secondary: "#064e3b" },
+        { match: /sunset|orange|gold/,   primary: "#f59e0b", secondary: "#7c2d12" },
+        { match: /pink|magenta|rose/,    primary: "#ec4899", secondary: "#831843" }
+      ];
+      const found = palettes.find(x => x.match.test(p)) || palettes[0];
+      state.primary = found.primary;
+      state.secondary = found.secondary;
+      state.bgImg = null;  // use gradient
+      draw();
+    }
+
+    // AI Generate — error-aware & graceful fallback
     $('btnAI').addEventListener('click', async () => {
       const prompt = $('aiPrompt').value || 'high-contrast abstract ocean waves, vivid, cinematic lighting';
       try {
@@ -286,6 +303,12 @@
 
         if (!res.ok) {
           const txt = await res.text();
+          if (res.status === 402 || res.status === 403 || res.status === 504) {
+            // Graceful: themed gradient so the workflow continues
+            applyPromptPalette(prompt);
+            alert(`AI image unavailable right now (status ${res.status}).\n${txt}\nUsing a styled gradient instead so you can keep designing.`);
+            return;
+          }
           alert(`Could not generate an AI background.\nServer responded ${res.status}: ${txt}`);
           return;
         }
@@ -300,7 +323,8 @@
         }
       } catch (e) {
         console.error(e);
-        alert(`Could not generate an AI background.\n${e.message}`);
+        applyPromptPalette(prompt);
+        alert(`Could not generate an AI background.\n${e.message}\nUsing a styled gradient instead.`);
       }
     });
 
