@@ -198,7 +198,11 @@
     }
 
     // Call function directly with timeout + fallback route
-    const FUNCTION_ENDPOINTS=['/.netlify/functions/openai-image','/api/openai-image'];
+   const FUNCTION_ENDPOINTS = [
+  '/.netlify/functions/img-gen',  // <-- this must be first
+  '/api/openai-image'             // fallback redirect (optional)
+];
+
    function fetchWithTimeout(url,options={},ms=18000){
       const ctrl=new AbortController(); const t=setTimeout(()=>ctrl.abort(new Error('Client-side timeout')),ms);
       return fetch(url,{...options,signal:ctrl.signal}).finally(()=>clearTimeout(t));
