@@ -4,7 +4,11 @@
 
 [functions]
   node_bundler = "esbuild"
-  timeout = 26  # extend function runtime
+  included_files = ["netlify/functions/**"]
+
+# Per-function config (this is the correct place for timeout)
+[functions."openai-image"]
+  timeout = 26
 
 [[redirects]]
   from = "/api/openai-image"
