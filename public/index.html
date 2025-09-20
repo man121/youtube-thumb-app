@@ -381,8 +381,9 @@ const state = {
   layout: 'left',
   fit: 'cover', // cover | contain | stretch
   bgImg: null,
-  logoImg: null   // <-- no comma here
+  logoImg: null   // <-- IMPORTANT: no comma here
 };
+</script>
 
     const canvas = $('canvas');
 
@@ -403,7 +404,7 @@ const state = {
     $('colorText').addEventListener('input', (e) => { state.text = e.target.value; draw(); });
 
     $('fileBg').addEventListener('change', async (e) => {
-      const file = e.target.files && e.target.files[0];
+     const file = e.target.files && e.target.files[0];
       if (!file) return;
       const reader = new FileReader();
       reader.onload = async () => {
@@ -438,7 +439,7 @@ const state = {
     });
 
     $('btnAI').addEventListener('click', async () => {
-      const prompt = $('aiPrompt').value || 'high-contrast abstract ocean waves, vivid, cinematic lighting';
+     const prompt = $('aiPrompt').value || 'high-contrast abstract ocean waves, vivid, cinematic lighting';
       try {
         const res = await fetch('/api/openai-image', {
           method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt })
