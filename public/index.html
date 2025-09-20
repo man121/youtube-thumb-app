@@ -41,7 +41,7 @@
 <body>
   <div class="header">
     <h1>YouTube Thumbnail Generator</h1>
-    <div class="muted">Single-file HTML • 1280×720 export • AI background via <code>/api/openai-image</code></div>
+    <div class="muted">Single-file HTML • 1280×720 export • AI background via <code>/.netlify/functions/openai-image</code></div>
   </div>
 
   <div class="container">
@@ -144,6 +144,7 @@
   <script>
     const W=1280,H=720; const $=id=>document.getElementById(id);
 
+    // ===== Helpers =====
     function extractYouTubeId(input){
       try{
         const s=(input||'').trim();
@@ -175,7 +176,45 @@
       for(const w of words){const test=line?line+' '+w:w;if(ctx.measureText(test).width<=maxWidth){line=test;}else{if(line)lines.push(line);line=w;}}
       if(line)lines.push(line);ctx.restore();return lines;
     }
+    function applyPromptPalette(prompt){
+      const p=(prompt||'').toLowerCase();
+      const palettes=[
+        {match:/cyber|neon|punk/,primary:'#ff006e',secondary:'#3a0ca3'},
+        {match:/ocean|wave|blue/,primary:'#0ea5e9',secondary:'#082f49'},
+        {match:/forest|green|nature/,primary:'#22c55e',secondary:'#064e3b'},
+        {match:/sunset|orange|gold/,primary:'#f59e0b',secondary:'#7c2d12'},
+        {match:/pink|magenta|rose/,primary:'#ec4899',secondary:'#831843'}
+      ];
+      const f=palettes.find(x=>x.match.test(p))||palettes[0];
+      state.primary=f.primary; state.secondary=f.secondary; state.bgImg=null; draw();
+    }
+    function setLoading(on){
+      const overlay=$('loadingOverlay'); const btn=$('btnAI');
+      if(!btn.dataset.label) btn.dataset.label=btn.textContent;
+      btn.disabled=on; btn.textContent=on?'Generating…':btn.dataset.label;
+      overlay.classList.toggle('active',on);
+      overlay.setAttribute('aria-hidden',String(!on));
+      overlay.parentElement.setAttribute('aria-busy',String(on));
+    }
 
+    // Call function directly with timeout + fallback route
+    const FUNCTION_ENDPOINTS=['/.netlify/functions/openai-image','/api/openai-image'];
+    function fetchWithTimeout(url,options={},ms=16000){
+      const ctrl=new AbortController(); const t=setTimeout(()=>ctrl.abort(new Error('Client-side timeout')),ms);
+      return fetch(url,{...options,signal:ctrl.signal}).finally(()=>clearTimeout(t));
+    }
+    async function callImageAPI(body){
+      let lastErr;
+      for(const ep of FUNCTION_ENDPOINTS){
+        try{
+          const res=await fetchWithTimeout(ep,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)},16000);
+          return {res,ep};
+        }catch(e){ lastErr=e; }
+      }
+      throw lastErr||new Error('All endpoints failed');
+    }
+
+    // ===== Draw =====
     function draw(){
       const ctx=canvas.getContext('2d'); ctx.clearRect(0,0,W,H);
       if(state.bgImg){const r=coverContainRect(state.bgImg.naturalWidth,state.bgImg.naturalHeight,W,H,state.fit);try{ctx.drawImage(state.bgImg,r.sx,r.sy,r.sWidth,r.sHeight,r.dx,r.dy,r.dWidth,r.dHeight);}catch{}}
@@ -185,7 +224,6 @@
       const pad=64, textW=W-pad*2, align=state.layout;
       const titleFont=`bold ${state.titleSize}px Bebas Neue, Impact, Arial Black, sans-serif`;
       const subFont=`bold ${state.subtitleSize}px Bebas Neue, Impact, Arial Black, sans-serif`;
-
       function drawLines(lines,startY,fs){
         const lh=Math.round(fs*1.05); let y=startY;
         for(const line of lines){
@@ -197,33 +235,30 @@
         }
         return y;
       }
-
       ctx.font=titleFont; ctx.textBaseline='top';
       const titleLines=wrapText(ctx,state.title,textW,titleFont);
       let nextY=drawLines(titleLines,H*0.58,state.titleSize);
-
       if((state.subtitle||'').trim()){
         ctx.font=subFont; ctx.textBaseline='top';
         const subLines=wrapText(ctx,state.subtitle,textW,subFont);
         nextY=drawLines(subLines,nextY+16,state.subtitleSize);
       }
-
       if(state.logoImg){
         const max=200; const r=coverContainRect(state.logoImg.naturalWidth,state.logoImg.naturalHeight,max,max,'contain');
         ctx.drawImage(state.logoImg,r.sx,r.sy,r.sWidth,r.sHeight,24,24,r.dWidth,r.dHeight);
       }
     }
 
+    // ===== State =====
     const state={
       primary:'#0ea5e9', secondary:'#1e293b', text:'#ffffff',
       title:'How to Build a Thumbnail Generator', subtitle:'Step-by-step in 10 minutes',
       titleSize:120, subtitleSize:56, strokeWidth:8, shadow:'on',
       layout:'left', fit:'cover', bgImg:null, logoImg:null
     };
-
     const canvas=$('canvas');
 
-    // Controls
+    // ===== Wiring =====
     $('title').addEventListener('input',e=>{state.title=e.target.value;draw()});
     $('subtitle').addEventListener('input',e=>{state.subtitle=e.target.value;draw()});
     $('titleSize').addEventListener('input',e=>{state.titleSize=+e.target.value;$('lblTitleSize').textContent=state.titleSize;draw()});
@@ -236,7 +271,6 @@
     $('colorSecondary').addEventListener('input',e=>{state.secondary=e.target.value;draw()});
     $('colorText').addEventListener('input',e=>{state.text=e.target.value;draw()});
 
-    // Uploads
     $('fileBg').addEventListener('change',async e=>{
       const file=e.target.files && e.target.files[0]; if(!file) return;
       const reader=new FileReader();
@@ -251,7 +285,6 @@
       reader.readAsDataURL(file);
     });
 
-    // YouTube thumbnail (fallback chain)
     $('btnUseYT').addEventListener('click', async ()=>{
       const id=extractYouTubeId($('ytUrl').value);
       if(!id){alert('Please paste a full YouTube URL or a valid 11-char video ID.');return;}
@@ -267,56 +300,31 @@
       state.bgImg=loaded; draw();
     });
 
-    // Palette fallback
-    function applyPromptPalette(prompt){
-      const p=(prompt||'').toLowerCase();
-      const palettes=[
-        {match:/cyber|neon|punk/,primary:'#ff006e',secondary:'#3a0ca3'},
-        {match:/ocean|wave|blue/,primary:'#0ea5e9',secondary:'#082f49'},
-        {match:/forest|green|nature/,primary:'#22c55e',secondary:'#064e3b'},
-        {match:/sunset|orange|gold/,primary:'#f59e0b',secondary:'#7c2d12'},
-        {match:/pink|magenta|rose/,primary:'#ec4899',secondary:'#831843'}
-      ];
-      const f=palettes.find(x=>x.match.test(p))||palettes[0];
-      state.primary=f.primary; state.secondary=f.secondary; state.bgImg=null; draw();
-    }
-
-    // Spinner helpers
-    function setLoading(on){
-      const overlay=$('loadingOverlay'); const btn=$('btnAI');
-      if(!btn.dataset.label) btn.dataset.label=btn.textContent;
-      btn.disabled=on; btn.textContent=on?'Generating…':btn.dataset.label;
-      overlay.classList.toggle('active',on);
-      overlay.setAttribute('aria-hidden',String(!on));
-      overlay.parentElement.setAttribute('aria-busy',String(on));
-    }
-
-    // AI Generate
     $('btnAI').addEventListener('click', async ()=>{
       const prompt=$('aiPrompt').value||'high-contrast abstract ocean waves, vivid, cinematic lighting';
       const sel=$('imgSize'); const size=sel?(sel.value||'1024x1024'):'1024x1024';
       setLoading(true);
       try{
-        const res=await fetch('/api/openai-image',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt,size})});
+        const { res, ep } = await callImageAPI({ prompt, size });
         if(!res.ok){
           const txt=await res.text();
           if(res.status===402||res.status===403||res.status===504){
             applyPromptPalette(prompt);
-            alert(`AI image unavailable right now (status ${res.status}).\n${txt}\nUsing a styled gradient instead so you can keep designing.`);
+            alert(`AI image unavailable right now (status ${res.status}).\n${txt}\n(Endpoint: ${ep})\nUsing a styled gradient instead so you can keep designing.`);
             return;
           }
-          alert(`Could not generate an AI background.\nServer responded ${res.status}: ${txt}`);
+          alert(`Could not generate an AI background.\nServer responded ${res.status}: ${txt}\n(Endpoint tried: ${ep})`);
           return;
         }
         const blob=await res.blob(); const url=URL.createObjectURL(blob);
         try{state.bgImg=await loadImage(url);draw();}finally{setTimeout(()=>URL.revokeObjectURL(url),2000);}
       }catch(e){
-        console.error(e); applyPromptPalette(prompt);
-        alert(`Could not generate an AI background.\n${e.message}\nUsing a styled gradient instead.`);
+        console.error('AI fetch failed:',e);
+        applyPromptPalette(prompt);
+        alert(`Network error calling the image function.\n${e.message||e}\nUsing a styled gradient instead so you can continue.`);
       }finally{ setLoading(false); }
     });
 
-    // Export
     $('btnExport').addEventListener('click',()=>{
       try{
         const dataUrl=canvas.toDataURL('image/png');
@@ -325,102 +333,17 @@
       }catch{ alert('Export failed. If background came from YouTube, try Upload or AI Generate before exporting.'); }
     });
 
-    // Templates
-    $('tplElementary').addEventListener('click',()=>{
-      state.primary='#0ea5e9'; state.secondary='#082f49'; state.text='#ffffff';
-      state.title="Ms. Rivera's Art Class"; state.subtitle='Making Waves with Creativity';
-      state.layout='left'; state.strokeWidth=8; state.shadow='on';
-      $('title').value=state.title; $('subtitle').value=state.subtitle;
-      $('colorPrimary').value=state.primary; $('colorSecondary').value=state.secondary; $('colorText').value=state.text;
-      $('layout').value=state.layout; $('strokeWidth').value=String(state.strokeWidth); $('lblStroke').textContent=String(state.strokeWidth);
-      draw();
-    });
-    $('tplSecondary').addEventListener('click',()=>{
-      state.primary='#001f3f'; state.secondary='#003f6b'; state.text='#ffffff';
-      state.title='Secondary Campus News'; state.subtitle='Dress-Down Fridays • Sports • Clubs';
-      state.layout='center'; state.strokeWidth=10; state.shadow='on';
-      $('title').value=state.title; $('subtitle').value=state.subtitle;
-      $('colorPrimary').value=state.primary; $('colorSecondary').value=state.secondary; $('colorText').value=state.text;
-      $('layout').value=state.layout; $('strokeWidth').value=String(state.strokeWidth); $('lblStroke').textContent=String(state.strokeWidth);
-      draw();
-    });
-    $('tplAthletics').addEventListener('click',()=>{
-      state.primary='#111827'; state.secondary='#0ea5e9'; state.text='#ffffff';
-      state.title='PBMA Athletics'; state.subtitle='Game Day Highlights';
-      state.layout='right'; state.strokeWidth=12; state.shadow='on';
-      $('title').value=state.title; $('subtitle').value=state.subtitle;
-      $('colorPrimary').value=state.primary; $('colorSecondary').value=state.secondary; $('colorText').value=state.text;
-      $('layout').value=state.layout; $('strokeWidth').value=String(state.strokeWidth); $('lblStroke').textContent=String(state.strokeWidth);
-      draw();
-    });
-
-
-  function runTests(){
-    const tests = [];
-    const t = (name, fn) => {
-      try { tests.push({ name, ok: fn() === true }); }
-      catch (e) { tests.push({ name, ok: false, err: String(e) }); }
-    };
-
-    // extractYouTubeId cases (unchanged)
-    const cases = [
-      ['dQw4w9WgXcQ','dQw4w9WgXcQ'],
-      ['https://www.youtube.com/watch?v=dQw4w9WgXcQ','dQw4w9WgXcQ'],
-      ['https://youtu.be/dQw4w9WgXcQ','dQw4w9WgXcQ'],
-      ['https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=60s','dQw4w9WgXcQ'],
-      ['https://m.youtube.com/watch?v=dQw4w9WgXcQ','dQw4w9WgXcQ'],
-      ['https://www.youtube.com/shorts/dQw4w9WgXcQ?si=abc','dQw4w9WgXcQ'],
-      ['https://www.youtube.com/embed/dQw4w9WgXcQ','dQw4w9WgXcQ'],
-      ['   dQw4w9WgXcQ   ','dQw4w9WgXcQ'],
-      ['not-a-url-or-id',null],
-      ['short-id',null],
-    ];
-    for (const [inp, exp] of cases) {
-      t(`extractYouTubeId(${JSON.stringify(inp)}) → ${exp}`, () => extractYouTubeId(inp) === exp);
+    // ===== Tests (corrected) =====
+    function runTests(){
+      const tests=[]; const t=(n,f)=>{ try{const r=f(); tests.push({n,ok:r===true});}catch(e){tests.push({n,ok:false});} };
+      const cases=[['dQw4w9WgXcQ','dQw4w9WgXcQ'],['https://www.youtube.com/watch?v=dQw4w9WgXcQ','dQw4w9WgXcQ'],['https://youtu.be/dQw4w9WgXcQ','dQw4w9WgXcQ'],['https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=60s','dQw4w9WgXcQ'],['https://m.youtube.com/watch?v=dQw4w9WgXcQ','dQw4w9WgXcQ'],['https://www.youtube.com/shorts/dQw4w9WgXcQ?si=abc','dQw4w9WgXcQ'],['https://www.youtube.com/embed/dQw4w9WgXcQ','dQw4w9WgXcQ'],['   dQw4w9WgXcQ   ','dQw4w9WgXcQ'],['not-a-url-or-id',null],['short-id',null]];
+      for(const [inp,exp] of cases){t(`extract(${inp})`,()=>extractYouTubeId(inp)===exp);}
+      t('stretch',()=>{const r=coverContainRect(100,50,200,100,'stretch');return r.dWidth===200&&r.dHeight===100;});
+      t('contain tall',()=>{const r=coverContainRect(100,200,200,100,'contain');return r.dx===75&&r.dy===0&&Math.round(r.dWidth)===50&&Math.round(r.dHeight)===100;});
+      t('cover wide',()=>{const r=coverContainRect(400,100,200,100,'cover');return Math.round(r.sWidth)===200&&Math.round(r.sHeight)===100;});
+      $('tests').textContent=tests.map(x=>`${x.ok?'✅':'❌'} ${x.n}`).join('\n');
+      return tests.every(x=>x.ok);
     }
-
-    // Geometry: stretch (sanity)
-    t('coverContainRect: stretch fills full destination', () => {
-      const r = coverContainRect(100, 50, 200, 100, 'stretch');
-      return r.dx === 0 && r.dy === 0 && r.dWidth === 200 && r.dHeight === 100;
-    });
-
-    // Geometry: contain (tall src inside landscape dst) — CORRECTED
-    // sr = 0.5, dr = 2 → dH = 100, dW = 50, centered horizontally (dx = 75)
-    t('contain: tall 100×200 → into 200×100 gives 50×100 @ dx=75,dy=0', () => {
-      const r = coverContainRect(100, 200, 200, 100, 'contain');
-      return r.dx === 75 && r.dy === 0 && Math.round(r.dWidth) === 50 && Math.round(r.dHeight) === 100;
-    });
-
-    // Geometry: cover (very wide src) — CORRECTED
-    // sr = 4, dr = 2 → crop width in source: sW = 200, sH = 100, sx = 100
-    t('cover: wide 400×100 → into 200×100 crops source to 200×100 @ sx=100', () => {
-      const r = coverContainRect(400, 100, 200, 100, 'cover');
-      return Math.round(r.sWidth) === 200 && Math.round(r.sHeight) === 100 && Math.round(r.dx) === 0 && Math.round(r.dy) === 0;
-    });
-
-    // Extra Geometry: contain (wide src into portrait dst)
-    // sr = 2, dr = 0.5 → dW = 100, dH = 50, centered vertically (dy = 75)
-    t('contain: wide 200×100 → into 100×200 gives 100×50 @ dx=0,dy=75', () => {
-      const r = coverContainRect(200, 100, 100, 200, 'contain');
-      return r.dx === 0 && r.dy === 75 && Math.round(r.dWidth) === 100 && Math.round(r.dHeight) === 50;
-    });
-
-    // Extra Geometry: cover (tall src into landscape dst)
-    // sr = 0.25, dr = 2 → crop source height: sW = 100, sH ≈ 50, sy = 175
-    t('cover: tall 100×400 → into 200×100 crops source height to ~50 (sy≈175)', () => {
-      const r = coverContainRect(100, 400, 200, 100, 'cover');
-      return Math.round(r.sWidth) === 100 && Math.round(r.sHeight) === 50 && Math.round(r.dx) === 0 && Math.round(r.dy) === 0;
-    });
-
-    // Render results with names
-    document.getElementById('tests').textContent =
-      tests.map(x => `${x.ok ? '✅' : '❌'} ${x.name || 'test'}`).join('\n');
-
-    return tests.every(x => x.ok);
-  }
-
-
     draw(); runTests();
   </script>
 </body>
