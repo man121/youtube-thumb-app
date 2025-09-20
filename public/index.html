@@ -1,557 +1,313 @@
-html_content = """<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>YouTube Thumbnail Generator (Single File)</title>
+  <title>YouTube Thumbnail Generator</title>
   <style>
-    :root {
-      --bg: #f8fafc; /* slate-50 */
-      --text: #0f172a; /* slate-900 */
-      --muted: #475569; /* slate-600 */
-      --primary: #0ea5e9; /* sky-500 */
-      --secondary: #1e293b; /* slate-800 */
-    }
-    * { box-sizing: border-box; }
-    html, body { height: 100%; }
-    body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background: var(--bg); color: var(--text); }
-    .container { max-width: 1200px; margin: 0 auto; padding: 16px; display: grid; grid-template-columns: 1fr 2fr; gap: 16px; }
-    @media (max-width: 980px) { .container { grid-template-columns: 1fr; } }
-    .card { background: white; border: 1px solid #e5e7eb; border-radius: 14px; box-shadow: 0 1px 2px rgba(0,0,0,0.06); }
-    .card__body { padding: 16px; }
-    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-    .row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
-    .row-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
-    .mb-2 { margin-bottom: 8px; }
-    .mb-3 { margin-bottom: 12px; }
-    .mb-4 { margin-bottom: 16px; }
-    .muted { color: var(--muted); font-size: 12px; }
-    label { font-size: 14px; display: block; margin-bottom: 4px; }
-    input[type="text"], input[type="number"], textarea, select { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 14px; }
-    input[type="color"] { width: 100%; height: 38px; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; padding: 0; }
-    input[type="file"] { width: 100%; }
-    input[type="range"] { width: 100%; }
-    .btn { display: inline-flex; align-items: center; gap: 8px; padding: 10px 14px; border: 1px solid #cbd5e1; border-radius: 10px; background: #fff; cursor: pointer; font-weight: 600; }
-    .btn.primary { background: var(--primary); color: #fff; border-color: var(--primary); }
-    .btn.secondary { background: #f1f5f9; }
-    .btn:disabled { opacity: 0.6; cursor: not-allowed; }
-    .btnbar { display: flex; flex-wrap: wrap; gap: 8px; }
-    .template-bar .btn { background: #f8fafc; }
-    fieldset { border: 1px solid #e5e7eb; padding: 10px; border-radius: 10px; }
-    legend { padding: 0 6px; color: var(--muted); font-size: 12px; }
-    .preview-wrap { display: flex; justify-content: center; }
-    .canvas-shell { border: 1px solid #e5e7eb; background: white; border-radius: 14px; padding: 8px; box-shadow: inset 0 1px 4px rgba(0,0,0,0.05); }
-    .notice { font-size: 12px; color: #9ca3af; }
-    .tests { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; background: #0b1220; color: #d1e5ff; padding: 12px; border-radius: 10px; white-space: pre-wrap; max-height: 180px; overflow: auto; }
-    .header { padding: 8px 16px; }
-    h1 { font-size: 22px; margin: 0 0 6px; }
+    :root { --bg:#f8fafc; --text:#0f172a; --muted:#475569; --primary:#0ea5e9; --secondary:#1e293b; }
+    *{box-sizing:border-box} html,body{height:100%} body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--text)}
+    .container{max-width:1200px;margin:0 auto;padding:16px;display:grid;grid-template-columns:1fr 2fr;gap:16px}
+    @media (max-width:980px){.container{grid-template-columns:1fr}}
+    .card{background:#fff;border:1px solid #e5e7eb;border-radius:14px;box-shadow:0 1px 2px rgba(0,0,0,.06)}
+    .card__body{padding:16px}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .row-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+    .muted{color:var(--muted);font-size:12px}
+    .notice{font-size:12px;color:#9ca3af}
+    label{font-size:14px;display:block;margin-bottom:4px}
+    input[type=text],textarea,select{width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px}
+    input[type=color]{width:100%;height:38px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;padding:0}
+    input[type=file]{width:100%} input[type=range]{width:100%}
+    .btn{display:inline-flex;align-items:center;gap:8px;padding:10px 14px;border:1px solid #cbd5e1;border-radius:10px;background:#fff;cursor:pointer;font-weight:600}
+    .btn.primary{background:var(--primary);color:#fff;border-color:var(--primary)}
+    .btnbar{display:flex;flex-wrap:wrap;gap:8px}
+    .preview-wrap{display:flex;justify-content:center}
+    .canvas-shell{border:1px solid #e5e7eb;background:#fff;border-radius:14px;padding:8px;box-shadow:inset 0 1px 4px rgba(0,0,0,.05)}
+    .tests{font-family:ui-monospace,Menlo,Consolas,monospace;background:#0b1220;color:#d1e5ff;padding:12px;border-radius:10px;white-space:pre-wrap;max-height:180px;overflow:auto}
+    .header{padding:8px 16px} h1{font-size:22px;margin:0 0 6px}
   </style>
 </head>
 <body>
   <div class="header">
     <h1>YouTube Thumbnail Generator</h1>
-    <div class="muted">Single-file HTML • 1280×720 export • brand overlays • AI background via <code>/api/openai-image</code></div>
+    <div class="muted">Single-file HTML • 1280×720 export • AI background via <code>/api/openai-image</code></div>
   </div>
 
   <div class="container">
     <!-- Controls -->
-    <div class="card">
-      <div class="card__body">
-        <div class="mb-3 muted">Sources</div>
-        <div class="mb-3">
-          <label for="ytUrl">YouTube URL or ID</label>
-          <div class="row">
-            <input id="ytUrl" type="text" placeholder="https://youtube.com/watch?v=... or 11-char ID" />
-            <button id="btnUseYT" class="btn">Use video thumbnail</button>
-          </div>
-          <div class="notice">We fetch the public preview from <code>img.youtube.com</code>. Export may fail if CORS blocks the canvas. If that happens, upload a screenshot or use AI background.</div>
+    <div class="card"><div class="card__body">
+      <div class="mb-3 muted">Sources</div>
+      <div class="mb-3">
+        <label for="ytUrl">YouTube URL or ID</label>
+        <div class="row">
+          <input id="ytUrl" type="text" placeholder="https://youtube.com/watch?v=... or 11-char ID" />
+          <button id="btnUseYT" class="btn">Use video thumbnail</button>
         </div>
+        <div class="notice">We fetch from <code>img.youtube.com</code>. If export fails due to CORS, upload a screenshot or use AI background.</div>
+      </div>
 
-        <div class="mb-3">
-          <label>Upload background image</label>
-          <input id="fileBg" type="file" accept="image/*" />
+      <div class="mb-3">
+        <label>Upload background image</label>
+        <input id="fileBg" type="file" accept="image/*" />
+      </div>
+
+      <div class="mb-4">
+        <label for="aiPrompt">AI Background Prompt</label>
+        <textarea id="aiPrompt" rows="2" placeholder="e.g., epic neon cyberpunk city, high contrast, bokeh"></textarea>
+        <div class="btnbar" style="margin-top:8px">
+          <button id="btnAI" class="btn">Generate (OpenAI Images)</button>
         </div>
+        <div class="notice">Requires <code>OPENAI_API_KEY</code> in Netlify and the function below.</div>
+      </div>
 
-        <div class="mb-4">
-          <label for="aiPrompt">AI Background Prompt</label>
-          <textarea id="aiPrompt" rows="2" placeholder="e.g., epic neon cyberpunk city, high contrast, bokeh"></textarea>
-          <div class="btnbar mt-2">
-            <button id="btnAI" class="btn">Generate (OpenAI Images)</button>
-          </div>
-          <div class="notice">Requires server route <code>/api/openai-image</code> that returns a PNG. Set <code>OPENAI_API_KEY</code> on your host.</div>
+      <div class="mb-3" style="border-top:1px solid #e5e7eb; padding-top: 12px;">
+        <div class="row">
+          <div><label>Title</label><input id="title" type="text" value="How to Build a Thumbnail Generator" /></div>
+          <div><label>Subtitle</label><input id="subtitle" type="text" value="Step-by-step in 10 minutes" /></div>
         </div>
-
-        <div class="mb-3" style="border-top:1px solid #e5e7eb; padding-top: 12px;">
-          <div class="row">
-            <div>
-              <label>Title</label>
-              <input id="title" type="text" value="How to Build a Thumbnail Generator" />
-            </div>
-            <div>
-              <label>Subtitle</label>
-              <input id="subtitle" type="text" value="Step-by-step in 10 minutes" />
-            </div>
-          </div>
-          <div class="row mt-2">
-            <div>
-              <label>Title size (<span id="lblTitleSize">120</span>px)</label>
-              <input id="titleSize" type="range" min="48" max="160" step="1" value="120" />
-            </div>
-            <div>
-              <label>Subtitle size (<span id="lblSubtitleSize">56</span>px)</label>
-              <input id="subtitleSize" type="range" min="28" max="96" step="1" value="56" />
-            </div>
-          </div>
-          <div class="row mt-2">
-            <div>
-              <label>Stroke width (<span id="lblStroke">8</span>px)</label>
-              <input id="strokeWidth" type="range" min="0" max="16" step="1" value="8" />
-            </div>
-            <div>
-              <label>Shadow</label>
-              <select id="shadow">
-                <option value="on" selected>On</option>
-                <option value="off">Off</option>
-              </select>
-            </div>
-          </div>
-          <div class="row mt-2">
-            <div>
-              <label>Layout</label>
-              <select id="layout">
-                <option value="left" selected>Left</option>
-                <option value="center">Center</option>
-                <option value="right">Right</option>
-              </select>
-            </div>
-            <div>
-              <label>Background Fit</label>
-              <select id="fit">
-                <option value="cover" selected>Cover (crop overflow)</option>
-                <option value="contain">Contain (letterbox)</option>
-                <option value="stretch">Stretch (may distort)</option>
-              </select>
-            </div>
-          </div>
+        <div class="row" style="margin-top:8px">
+          <div><label>Title size (<span id="lblTitleSize">120</span>px)</label><input id="titleSize" type="range" min="48" max="160" step="1" value="120" /></div>
+          <div><label>Subtitle size (<span id="lblSubtitleSize">56</span>px)</label><input id="subtitleSize" type="range" min="28" max="96" step="1" value="56" /></div>
         </div>
-
-        <div class="mb-3">
-          <div class="row-3">
-            <div>
-              <label>Primary</label>
-              <input id="colorPrimary" type="color" value="#0ea5e9" />
-            </div>
-            <div>
-              <label>Secondary</label>
-              <input id="colorSecondary" type="color" value="#1e293b" />
-            </div>
-            <div>
-              <label>Text</label>
-              <input id="colorText" type="color" value="#ffffff" />
-            </div>
-          </div>
+        <div class="row" style="margin-top:8px">
+          <div><label>Stroke width (<span id="lblStroke">8</span>px)</label><input id="strokeWidth" type="range" min="0" max="16" step="1" value="8" /></div>
+          <div><label>Shadow</label><select id="shadow"><option value="on" selected>On</option><option value="off">Off</option></select></div>
         </div>
-
-        <div class="mb-3">
-          <label>Logo (optional)</label>
-          <input id="fileLogo" type="file" accept="image/*" />
-        </div>
-
-        <div class="mb-3 template-bar">
-          <label class="mb-2">Templates</label>
-          <div class="btnbar">
-            <button id="tplElementary" class="btn">PBMA • Elementary (Reef)</button>
-            <button id="tplSecondary" class="btn">PBMA • Secondary (Navy)</button>
-            <button id="tplAthletics" class="btn">PBMA • Athletics (Bold)</button>
-          </div>
-        </div>
-
-        <div class="btnbar">
-          <button id="btnExport" class="btn primary">Export PNG</button>
-        </div>
-
-        <div class="mb-2" style="border-top:1px solid #e5e7eb; padding-top: 12px;">
-          <div class="muted">Tests (dev):</div>
-          <div id="tests" class="tests"></div>
+        <div class="row" style="margin-top:8px">
+          <div><label>Layout</label><select id="layout"><option value="left" selected>Left</option><option value="center">Center</option><option value="right">Right</option></select></div>
+          <div><label>Background Fit</label><select id="fit"><option value="cover" selected>Cover</option><option value="contain">Contain</option><option value="stretch">Stretch</option></select></div>
         </div>
       </div>
-    </div>
+
+      <div class="mb-3">
+        <div class="row-3">
+          <div><label>Primary</label><input id="colorPrimary" type="color" value="#0ea5e9" /></div>
+          <div><label>Secondary</label><input id="colorSecondary" type="color" value="#1e293b" /></div>
+          <div><label>Text</label><input id="colorText" type="color" value="#ffffff" /></div>
+        </div>
+      </div>
+
+      <div class="mb-3">
+        <label>Logo (optional)</label>
+        <input id="fileLogo" type="file" accept="image/*" />
+      </div>
+
+      <div class="mb-3">
+        <label class="mb-2">Templates</label>
+        <div class="btnbar">
+          <button id="tplElementary" class="btn">PBMA • Elementary (Reef)</button>
+          <button id="tplSecondary" class="btn">PBMA • Secondary (Navy)</button>
+          <button id="tplAthletics" class="btn">PBMA • Athletics (Bold)</button>
+        </div>
+      </div>
+
+      <div class="btnbar">
+        <button id="btnExport" class="btn primary">Export PNG</button>
+      </div>
+
+      <div class="muted" style="border-top:1px solid #e5e7eb;margin-top:12px;padding-top:12px">Tests (dev):</div>
+      <div id="tests" class="tests"></div>
+    </div></div>
 
     <!-- Preview -->
-    <div class="card">
-      <div class="card__body preview-wrap">
-        <div class="canvas-shell">
-          <!-- Scaled preview: actual canvas is 1280×720 but we display half-size -->
-          <canvas id="canvas" width="1280" height="720" style="width: 640px; height: 360px; display:block;"></canvas>
-        </div>
+    <div class="card"><div class="card__body preview-wrap">
+      <div class="canvas-shell">
+        <canvas id="canvas" width="1280" height="720" style="width:640px;height:360px;display:block;"></canvas>
       </div>
-    </div>
+    </div></div>
   </div>
 
   <script>
-    // ===== Utilities =====
-    const W = 1280, H = 720;
-    const $ = (id) => document.getElementById(id);
+    const W=1280,H=720; const $=id=>document.getElementById(id);
 
-    function extractYouTubeId(input) {
-      try {
-        const s = (input || '').trim();
-        if (/^[A-Za-z0-9_-]{11}$/.test(s)) return s;
-        const url = new URL(s);
-        const host = url.hostname.replace(/^www\\./, '');
-        if (host === 'youtu.be') {
-          const seg = url.pathname.replace(/^\\//, '').split('/')[0];
-          return /^[A-Za-z0-9_-]{11}$/.test(seg) ? seg : null;
+    function extractYouTubeId(input){
+      try{
+        const s=(input||'').trim();
+        if(/^[A-Za-z0-9_-]{11}$/.test(s)) return s;
+        const url=new URL(s); const host=url.hostname.replace(/^www\./,'');
+        if(host==='youtu.be'){
+          const seg=url.pathname.replace(/^\//,'').split('/')[0];
+          return /^[A-Za-z0-9_-]{11}$/.test(seg)?seg:null;
         }
-        if (host.endsWith('youtube.com')) {
-          const v = url.searchParams.get('v');
-          if (v && /^[A-Za-z0-9_-]{11}$/.test(v)) return v;
-          const m = url.pathname.match(/\\/(shorts|embed|live)\\/([A-Za-z0-9_-]{11})(?:\\b|\\/|$)/);
-          if (m) return m[2];
+        if(host.endsWith('youtube.com')){
+          const v=url.searchParams.get('v');
+          if(v && /^[A-Za-z0-9_-]{11}$/.test(v)) return v;
+          const m=url.pathname.match(/\/(shorts|embed|live)\/([A-Za-z0-9_-]{11})(?:\b|\/|$)/);
+          if(m) return m[2];
         }
         return null;
-      } catch {
-        return null;
-      }
+      }catch{return null;}
     }
 
-    function loadImage(src, { crossOrigin } = {}) {
-      return new Promise((resolve, reject) => {
-        const img = new Image();
-        if (crossOrigin) img.crossOrigin = crossOrigin;
-        img.onload = () => resolve(img);
-        img.onerror = (e) => reject(e);
-        img.src = src;
-      });
+    function loadImage(src,{crossOrigin}={}){ return new Promise((res,rej)=>{ const img=new Image(); if(crossOrigin) img.crossOrigin=crossOrigin; img.onload=()=>res(img); img.onerror=e=>rej(e); img.src=src; }); }
+    function coverContainRect(sw,sh,dw,dh,mode='cover'){
+      if(mode==='stretch') return {sx:0,sy:0,sWidth:sw,sHeight:sh,dx:0,dy:0,dWidth:dw,dHeight:dh};
+      const sr=sw/sh, dr=dw/dh;
+      if(mode==='cover'){ let sW,sH,sx,sy; if(sr>dr){ sH=sh; sW=dr*sH; sx=(sw-sW)/2; sy=0; } else { sW=sw; sH=sW/dr; sx=0; sy=(sh-sH)/2; }
+        return {sx,sy,sWidth:sW,sHeight:sH,dx:0,dy:0,dWidth:dw,dHeight:dh}; }
+      else{ let dW,dH,dx,dy; if(sr>dr){ dW=dw; dH=dW/sr; dx=0; dy=(dh-dH)/2; } else { dH=dh; dW=dH*sr; dy=0; dx=(dw-dW)/2; } return {sx:0,sy:0,sWidth:sw,sHeight:sh,dx,dy,dWidth:dW,dHeight:dH}; }
+    }
+    function wrapText(ctx,text,maxWidth,font){
+      if(!text||!text.trim()) return []; ctx.save(); ctx.font=font; const words=text.split(/\s+/); const lines=[]; let line='';
+      for(const w of words){ const test=line?line+' '+w:w; if(ctx.measureText(test).width<=maxWidth){ line=test; } else { if(line) lines.push(line); line=w; } }
+      if(line) lines.push(line); ctx.restore(); return lines;
     }
 
-    function coverContainRect(srcW, srcH, dstW, dstH, mode = 'cover') {
-      // returns { sx, sy, sWidth, sHeight, dx, dy, dWidth, dHeight } for drawImage
-      if (mode === 'stretch') {
-        return { sx: 0, sy: 0, sWidth: srcW, sHeight: srcH, dx: 0, dy: 0, dWidth: dstW, dHeight: dstH };
-      }
-      const srcRatio = srcW / srcH;
-      const dstRatio = dstW / dstH;
-      if (mode === 'cover') {
-        // fill dst completely; crop source as needed
-        let sWidth, sHeight, sx, sy;
-        if (srcRatio > dstRatio) {
-          sHeight = srcH; sWidth = dstRatio * sHeight;
-          sx = (srcW - sWidth) / 2; sy = 0;
-        } else {
-          sWidth = srcW; sHeight = sWidth / dstRatio;
-          sx = 0; sy = (srcH - sHeight) / 2;
-        }
-        return { sx, sy, sWidth, sHeight, dx: 0, dy: 0, dWidth: dstW, dHeight: dstH };
-      } else { // contain
-        // fit inside dst; letterbox
-        let dWidth, dHeight, dx, dy;
-        if (srcRatio > dstRatio) {
-          dWidth = dstW; dHeight = dWidth / srcRatio;
-          dx = 0; dy = (dstH - dHeight) / 2;
-        } else {
-          dHeight = dstH; dWidth = dHeight * srcRatio;
-          dy = 0; dx = (dstW - dWidth) / 2;
-        }
-        return { sx: 0, sy: 0, sWidth: srcW, sHeight: srcH, dx, dy, dWidth, dHeight };
-      }
-    }
-
-    function wrapText(ctx, text, maxWidth, font) {
-      // returns array of lines; naive word-wrap
-      if (!text || !text.trim()) return [];
-      ctx.save();
-      ctx.font = font;
-      const words = text.split(/\\s+/);
-      const lines = [];
-      let line = '';
-      for (const w of words) {
-        const test = line ? line + ' ' + w : w;
-        if (ctx.measureText(test).width <= maxWidth) {
-          line = test;
-        } else {
-          if (line) lines.push(line);
-          line = w;
-        }
-      }
-      if (line) lines.push(line);
-      ctx.restore();
-      return lines;
-    }
-
-    function draw() {
-      const ctx = canvas.getContext('2d');
-      ctx.clearRect(0, 0, W, H);
-
+    function draw(){
+      const ctx=canvas.getContext('2d'); ctx.clearRect(0,0,W,H);
       // Background
-      if (state.bgImg) {
-        const mode = state.fit;
-        const r = coverContainRect(state.bgImg.naturalWidth, state.bgImg.naturalHeight, W, H, mode);
-        try {
-          ctx.drawImage(state.bgImg, r.sx, r.sy, r.sWidth, r.sHeight, r.dx, r.dy, r.dWidth, r.dHeight);
-        } catch (e) {
-          // draw nothing if image not ready
-        }
-      } else {
-        // Gradient fallback
-        const g = ctx.createLinearGradient(0, 0, 0, H);
-        g.addColorStop(0, state.secondary);
-        g.addColorStop(1, state.primary);
-        ctx.fillStyle = g;
-        ctx.fillRect(0, 0, W, H);
-      }
-
-      // Bottom ribbon for text pop
-      ctx.fillStyle = 'rgba(0,0,0,0.35)';
-      ctx.fillRect(0, H * 0.55, W, H * 0.45);
+      if(state.bgImg){ const r=coverContainRect(state.bgImg.naturalWidth,state.bgImg.naturalHeight,W,H,state.fit); try{ ctx.drawImage(state.bgImg,r.sx,r.sy,r.sWidth,r.sHeight,r.dx,r.dy,r.dWidth,r.dHeight);}catch{} }
+      else{ const g=ctx.createLinearGradient(0,0,0,H); g.addColorStop(0,state.secondary); g.addColorStop(1,state.primary); ctx.fillStyle=g; ctx.fillRect(0,0,W,H); }
+      // Bottom ribbon
+      ctx.fillStyle='rgba(0,0,0,0.35)'; ctx.fillRect(0,H*0.55,W,H*0.45);
 
       // Text
-      const padding = 64;
-      const textWidth = W - padding * 2;
-      const align = state.layout; // left | center | right
-      const titleFont = `bold ${state.titleSize}px Bebas Neue, Impact, Arial Black, sans-serif`;
-      const subtitleFont = `bold ${state.subtitleSize}px Bebas Neue, Impact, Arial Black, sans-serif`;
+      const pad=64; const textW=W-pad*2; const align=state.layout;
+      const titleFont=`bold ${state.titleSize}px Bebas Neue, Impact, Arial Black, sans-serif`;
+      const subFont=`bold ${state.subtitleSize}px Bebas Neue, Impact, Arial Black, sans-serif`;
 
-      function drawLines(lines, startY, fontSize) {
-        const lh = Math.round(fontSize * 1.05);
-        let y = startY;
-        for (const line of lines) {
-          let x;
-          const w = ctx.measureText(line).width;
-          if (align === 'left') x = padding;
-          else if (align === 'center') x = (W - w) / 2;
-          else x = W - padding - w;
-
-          if (state.shadow === 'on') {
-            ctx.shadowColor = '#000';
-            ctx.shadowBlur = 16;
-            ctx.shadowOffsetX = 2;
-            ctx.shadowOffsetY = 4;
-          } else {
-            ctx.shadowColor = 'transparent';
-            ctx.shadowBlur = 0;
-            ctx.shadowOffsetX = 0;
-            ctx.shadowOffsetY = 0;
-          }
-
-          if (state.strokeWidth > 0) {
-            ctx.lineWidth = state.strokeWidth;
-            ctx.strokeStyle = state.secondary;
-            ctx.strokeText(line, x, y);
-          }
-
-          ctx.fillStyle = state.text;
-          ctx.fillText(line, x, y);
-          y += lh;
+      function drawLines(lines,startY,fs){
+        const lh=Math.round(fs*1.05); let y=startY;
+        for(const line of lines){
+          let x; const w=ctx.measureText(line).width;
+          if(align==='left') x=pad; else if(align==='center') x=(W-w)/2; else x=W-pad-w;
+          if(state.shadow==='on'){ ctx.shadowColor='#000'; ctx.shadowBlur=16; ctx.shadowOffsetX=2; ctx.shadowOffsetY=4; } else { ctx.shadowColor='transparent'; ctx.shadowBlur=0; ctx.shadowOffsetX=0; ctx.shadowOffsetY=0; }
+          if(state.strokeWidth>0){ ctx.lineWidth=state.strokeWidth; ctx.strokeStyle=state.secondary; ctx.strokeText(line,x,y); }
+          ctx.fillStyle=state.text; ctx.fillText(line,x,y); y+=lh;
         }
         return y;
       }
 
-      // Title
-      ctx.font = titleFont; ctx.textBaseline = 'top';
-      const titleLines = wrapText(ctx, state.title, textWidth, titleFont);
-      let nextY = drawLines(titleLines, H * 0.58, state.titleSize);
+      ctx.font=titleFont; ctx.textBaseline='top';
+      const titleLines=wrapText(ctx,state.title,textW,titleFont);
+      let nextY=drawLines(titleLines,H*0.58,state.titleSize);
 
-      // Subtitle
-      if ((state.subtitle || '').trim()) {
-        ctx.font = subtitleFont; ctx.textBaseline = 'top';
-        const subLines = wrapText(ctx, state.subtitle, textWidth, subtitleFont);
-        nextY = drawLines(subLines, nextY + 16, state.subtitleSize);
+      if((state.subtitle||'').trim()){
+        ctx.font=subFont; ctx.textBaseline='top';
+        const subLines=wrapText(ctx,state.subtitle,textW,subFont);
+        nextY=drawLines(subLines,nextY+16,state.subtitleSize);
       }
 
-      // Logo
-      if (state.logoImg) {
-        const max = 200;
-        const r = coverContainRect(state.logoImg.naturalWidth, state.logoImg.naturalHeight, max, max, 'contain');
-        ctx.drawImage(state.logoImg, r.sx, r.sy, r.sWidth, r.sHeight, 24, 24, r.dWidth, r.dHeight);
+      if(state.logoImg){
+        const max=200; const r=coverContainRect(state.logoImg.naturalWidth,state.logoImg.naturalHeight,max,max,'contain');
+        ctx.drawImage(state.logoImg,r.sx,r.sy,r.sWidth,r.sHeight,24,24,r.dWidth,r.dHeight);
       }
     }
 
     // ===== State =====
-const state = {
-  primary: '#0ea5e9',
-  secondary: '#1e293b',
-  text: '#ffffff',
-  title: 'How to Build a Thumbnail Generator',
-  subtitle: 'Step-by-step in 10 minutes',
-  titleSize: 120,
-  subtitleSize: 56,
-  strokeWidth: 8,
-  shadow: 'on',
-  layout: 'left',
-  fit: 'cover', // cover | contain | stretch
-  bgImg: null,
-  logoImg: null   // <-- IMPORTANT: no comma here
-};
-</script>
+    const state={
+      primary:'#0ea5e9',
+      secondary:'#1e293b',
+      text:'#ffffff',
+      title:'How to Build a Thumbnail Generator',
+      subtitle:'Step-by-step in 10 minutes',
+      titleSize:120,
+      subtitleSize:56,
+      strokeWidth:8,
+      shadow:'on',
+      layout:'left',
+      fit:'cover', // cover | contain | stretch
+      bgImg:null,
+      logoImg:null
+    };
 
-    const canvas = $('canvas');
+    const canvas=$('canvas');
 
-    // ===== Wiring controls =====
-    $('title').addEventListener('input', (e) => { state.title = e.target.value; draw(); });
-    $('subtitle').addEventListener('input', (e) => { state.subtitle = e.target.value; draw(); });
+    // Controls
+    $('title').addEventListener('input',e=>{state.title=e.target.value;draw()});
+    $('subtitle').addEventListener('input',e=>{state.subtitle=e.target.value;draw()});
+    $('titleSize').addEventListener('input',e=>{state.titleSize=+e.target.value;$('lblTitleSize').textContent=state.titleSize;draw()});
+    $('subtitleSize').addEventListener('input',e=>{state.subtitleSize=+e.target.value;$('lblSubtitleSize').textContent=state.subtitleSize;draw()});
+    $('strokeWidth').addEventListener('input',e=>{state.strokeWidth=+e.target.value;$('lblStroke').textContent=state.strokeWidth;draw()});
+    $('shadow').addEventListener('change',e=>{state.shadow=e.target.value;draw()});
+    $('layout').addEventListener('change',e=>{state.layout=e.target.value;draw()});
+    $('fit').addEventListener('change',e=>{state.fit=e.target.value;draw()});
+    $('colorPrimary').addEventListener('input',e=>{state.primary=e.target.value;draw()});
+    $('colorSecondary').addEventListener('input',e=>{state.secondary=e.target.value;draw()});
+    $('colorText').addEventListener('input',e=>{state.text=e.target.value;draw()});
 
-    $('titleSize').addEventListener('input', (e) => { state.titleSize = +e.target.value; $('lblTitleSize').textContent = state.titleSize; draw(); });
-    $('subtitleSize').addEventListener('input', (e) => { state.subtitleSize = +e.target.value; $('lblSubtitleSize').textContent = state.subtitleSize; draw(); });
-    $('strokeWidth').addEventListener('input', (e) => { state.strokeWidth = +e.target.value; $('lblStroke').textContent = state.strokeWidth; draw(); });
-
-    $('shadow').addEventListener('change', (e) => { state.shadow = e.target.value; draw(); });
-    $('layout').addEventListener('change', (e) => { state.layout = e.target.value; draw(); });
-    $('fit').addEventListener('change', (e) => { state.fit = e.target.value; draw(); });
-
-    $('colorPrimary').addEventListener('input', (e) => { state.primary = e.target.value; draw(); });
-    $('colorSecondary').addEventListener('input', (e) => { state.secondary = e.target.value; draw(); });
-    $('colorText').addEventListener('input', (e) => { state.text = e.target.value; draw(); });
-
-    $('fileBg').addEventListener('change', async (e) => {
-     const file = e.target.files && e.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = async () => {
-        try { state.bgImg = await loadImage(reader.result); draw(); }
-        catch (err) { alert('Could not load image.'); }
-      };
+    $('fileBg').addEventListener('change',async e=>{
+      const file=e.target.files && e.target.files[0];
+      if(!file) return;
+      const reader=new FileReader();
+      reader.onload=async ()=>{ try{ state.bgImg=await loadImage(reader.result); draw(); }catch{ alert('Could not load image.'); } };
       reader.readAsDataURL(file);
     });
 
-    $('fileLogo').addEventListener('change', async (e) => {
-      const file = e.target.files && e.target.files[0];
-      if (!file) { state.logoImg = null; draw(); return; }
-      const reader = new FileReader();
-      reader.onload = async () => {
-        try { state.logoImg = await loadImage(reader.result); draw(); }
-        catch (err) { alert('Could not load logo image.'); }
-      };
+    $('fileLogo').addEventListener('change',async e=>{
+      const file=e.target.files && e.target.files[0];
+      if(!file){ state.logoImg=null; draw(); return; }
+      const reader=new FileReader();
+      reader.onload=async ()=>{ try{ state.logoImg=await loadImage(reader.result); draw(); }catch{ alert('Could not load logo image.'); } };
       reader.readAsDataURL(file);
     });
 
-    $('btnUseYT').addEventListener('click', async () => {
-      const id = extractYouTubeId($('ytUrl').value);
-      if (!id) { alert('Please paste a full YouTube URL or a valid 11-char video ID.'); return; }
-      const url = `https://img.youtube.com/vi/${id}/maxresdefault.jpg`;
-      try {
-        // Note: CORS is required for exporting with remote images.
-        state.bgImg = await loadImage(url, { crossOrigin: 'anonymous' });
-        draw();
-      } catch (e) {
-        alert('Failed to load YouTube thumbnail. Try uploading a screenshot instead.');
-      }
+    $('btnUseYT').addEventListener('click',async ()=>{
+      const id=extractYouTubeId($('ytUrl').value);
+      if(!id){ alert('Please paste a full YouTube URL or a valid 11-char video ID.'); return; }
+      const url=`https://img.youtube.com/vi/${id}/maxresdefault.jpg`;
+      try{ state.bgImg=await loadImage(url,{crossOrigin:'anonymous'}); draw(); }
+      catch{ alert('Failed to load YouTube thumbnail. Try uploading a screenshot instead.'); }
     });
 
-    $('btnAI').addEventListener('click', async () => {
-     const prompt = $('aiPrompt').value || 'high-contrast abstract ocean waves, vivid, cinematic lighting';
-      try {
-        const res = await fetch('/api/openai-image', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt })
-        });
-        if (!res.ok) throw new Error('Image generation failed');
-        const blob = await res.blob();
-        const url = URL.createObjectURL(blob);
-        try {
-          state.bgImg = await loadImage(url); // object URLs are same-origin
-          draw();
-        } finally {
-          setTimeout(() => URL.revokeObjectURL(url), 2000);
-        }
-      } catch (e) {
-        console.error(e);
-        alert('Could not generate an AI background. Check your /api/openai-image logs.');
-      }
+    $('btnAI').addEventListener('click',async ()=>{
+      const prompt=$('aiPrompt').value || 'high-contrast abstract ocean waves, vivid, cinematic lighting';
+      try{
+        const res=await fetch('/api/openai-image',{ method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({prompt}) });
+        if(!res.ok) throw new Error('Image generation failed');
+        const blob=await res.blob(); const url=URL.createObjectURL(blob);
+        try{ state.bgImg=await loadImage(url); draw(); } finally { setTimeout(()=>URL.revokeObjectURL(url),2000); }
+      }catch(e){ console.error(e); alert('Could not generate an AI background. Check your /api/openai-image logs.'); }
     });
 
-    $('btnExport').addEventListener('click', () => {
-      try {
-        const dataUrl = canvas.toDataURL('image/png');
-        const a = document.createElement('a');
-        a.href = dataUrl;
-        a.download = `thumbnail-${Date.now()}.png`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-      } catch (e) {
-        alert('Export failed. This usually happens when a remote image (e.g., YouTube) taints the canvas due to CORS. Use an uploaded or AI-generated background instead.');
-      }
+    $('btnExport').addEventListener('click',()=>{
+      try{
+        const dataUrl=canvas.toDataURL('image/png');
+        const a=document.createElement('a'); a.href=dataUrl; a.download=`thumbnail-${Date.now()}.png`;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      }catch{ alert('Export failed. If background came from YouTube, try Upload or AI Generate before exporting.'); }
     });
 
     // Templates
-    $('tplElementary').addEventListener('click', () => {
-      state.primary = '#0ea5e9'; state.secondary = '#082f49'; state.text = '#ffffff';
-      state.title = "Ms. Rivera's Art Class"; state.subtitle = 'Making Waves with Creativity';
-      state.layout = 'left'; state.strokeWidth = 8; state.shadow = 'on';
-      $('title').value = state.title; $('subtitle').value = state.subtitle;
-      $('colorPrimary').value = state.primary; $('colorSecondary').value = state.secondary; $('colorText').value = state.text;
-      $('layout').value = state.layout; $('strokeWidth').value = String(state.strokeWidth); $('lblStroke').textContent = String(state.strokeWidth);
+    $('tplElementary').addEventListener('click',()=>{
+      state.primary='#0ea5e9'; state.secondary='#082f49'; state.text='#ffffff';
+      state.title="Ms. Rivera's Art Class"; state.subtitle='Making Waves with Creativity';
+      state.layout='left'; state.strokeWidth=8; state.shadow='on';
+      $('title').value=state.title; $('subtitle').value=state.subtitle;
+      $('colorPrimary').value=state.primary; $('colorSecondary').value=state.secondary; $('colorText').value=state.text;
+      $('layout').value=state.layout; $('strokeWidth').value=String(state.strokeWidth); $('lblStroke').textContent=String(state.strokeWidth);
+      draw();
+    });
+    $('tplSecondary').addEventListener('click',()=>{
+      state.primary='#001f3f'; state.secondary='#003f6b'; state.text='#ffffff';
+      state.title='Secondary Campus News'; state.subtitle='Dress-Down Fridays • Sports • Clubs';
+      state.layout='center'; state.strokeWidth=10; state.shadow='on';
+      $('title').value=state.title; $('subtitle').value=state.subtitle;
+      $('colorPrimary').value=state.primary; $('colorSecondary').value=state.secondary; $('colorText').value=state.text;
+      $('layout').value=state.layout; $('strokeWidth').value=String(state.strokeWidth); $('lblStroke').textContent=String(state.strokeWidth);
+      draw();
+    });
+    $('tplAthletics').addEventListener('click',()=>{
+      state.primary='#111827'; state.secondary='#0ea5e9'; state.text='#ffffff';
+      state.title='PBMA Athletics'; state.subtitle='Game Day Highlights';
+      state.layout='right'; state.strokeWidth=12; state.shadow='on';
+      $('title').value=state.title; $('subtitle').value=state.subtitle;
+      $('colorPrimary').value=state.primary; $('colorSecondary').value=state.secondary; $('colorText').value=state.text;
+      $('layout').value=state.layout; $('strokeWidth').value=String(state.strokeWidth); $('lblStroke').textContent=String(state.strokeWidth);
       draw();
     });
 
-    $('tplSecondary').addEventListener('click', () => {
-      state.primary = '#001f3f'; state.secondary = '#003f6b'; state.text = '#ffffff';
-      state.title = 'Secondary Campus News'; state.subtitle = 'Dress-Down Fridays • Sports • Clubs';
-      state.layout = 'center'; state.strokeWidth = 10; state.shadow = 'on';
-      $('title').value = state.title; $('subtitle').value = state.subtitle;
-      $('colorPrimary').value = state.primary; $('colorSecondary').value = state.secondary; $('colorText').value = state.text;
-      $('layout').value = state.layout; $('strokeWidth').value = String(state.strokeWidth); $('lblStroke').textContent = String(state.strokeWidth);
-      draw();
-    });
-
-    $('tplAthletics').addEventListener('click', () => {
-      state.primary = '#111827'; state.secondary = '#0ea5e9'; state.text = '#ffffff';
-      state.title = 'PBMA Athletics'; state.subtitle = 'Game Day Highlights';
-      state.layout = 'right'; state.strokeWidth = 12; state.shadow = 'on';
-      $('title').value = state.title; $('subtitle').value = state.subtitle;
-      $('colorPrimary').value = state.primary; $('colorSecondary').value = state.secondary; $('colorText').value = state.text;
-      $('layout').value = state.layout; $('strokeWidth').value = String(state.strokeWidth); $('lblStroke').textContent = String(state.strokeWidth);
-      draw();
-    });
-
-    // ===== Tests =====
-    function runTests() {
-      const tests = [];
-      function t(name, fn) {
-        try { const r = fn(); tests.push({ name, pass: r === true, out: r }); }
-        catch (e) { tests.push({ name, pass: false, out: String(e) }); }
-      }
-
-      // extractYouTubeId tests
-     const cases = [
-  ['dQw4w9WgXcQ', 'dQw4w9WgXcQ'],
-  ['https://www.youtube.com/watch?v=dQw4w9WgXcQ', 'dQw4w9WgXcQ'],
-  ['https://youtu.be/dQw4w9WgXcQ', 'dQw4w9WgXcQ'],
-  ['https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=60s', 'dQw4w9WgXcQ'],
-  ['https://m.youtube.com/watch?v=dQw4w9WgXcQ', 'dQw4w9WgXcQ'],
-  ['https://www.youtube.com/shorts/dQw4w9WgXcQ?si=abc', 'dQw4w9WgXcQ'],
-  ['https://www.youtube.com/embed/dQw4w9WgXcQ', 'dQw4w9WgXcQ'],
-  ['   dQw4w9WgXcQ   ', 'dQw4w9WgXcQ'],
-  ['not-a-url-or-id', null],
-  ['short-id', null]   // <-- no comma here
-];
-      for (const [inp, expected] of cases) {
-        t(`extractYouTubeId(${JSON.stringify(inp)})`, () => extractYouTubeId(inp) === expected);
-      }
-
-      // coverContainRect tests
-      t('coverContainRect stretch preserves full dst', () => {
-        const r = coverContainRect(100, 50, 200, 100, 'stretch');
-        return r.dx === 0 && r.dy === 0 && r.dWidth === 200 && r.dHeight === 100;
-      });
-      t('coverContainRect contain centers letterbox (tall)', () => {
-        const r = coverContainRect(100, 200, 200, 100, 'contain');
-        return r.dx === 50 && r.dy === 0 && Math.round(r.dWidth) === 100 && Math.round(r.dHeight) === 100;
-      });
-      t('coverContainRect cover crops wider src', () => {
-        const r = coverContainRect(400, 100, 200, 100, 'cover');
-        return Math.round(r.sWidth) === 400 && Math.round(r.sHeight) === 100; // draws full height, crops width internally
-      });
-
-      const out = tests.map(x => `${x.pass ? '✅' : '❌'} ${x.name}${x.pass ? '' : ' → ' + x.out}`).join('\\n');
-      document.getElementById('tests').textContent = out;
-      return tests.every(t => t.pass);
+    // Tests
+    function runTests(){ const tests=[]; const t=(n,f)=>{ try{const r=f(); tests.push({n,ok:r===true,o:r});}catch(e){tests.push({n,ok:false,o:String(e)})}};
+      const cases=[ ['dQw4w9WgXcQ','dQw4w9WgXcQ'], ['https://www.youtube.com/watch?v=dQw4w9WgXcQ','dQw4w9WgXcQ'], ['https://youtu.be/dQw4w9WgXcQ','dQw4w9WgXcQ'], ['https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=60s','dQw4w9WgXcQ'], ['https://m.youtube.com/watch?v=dQw4w9WgXcQ','dQw4w9WgXcQ'], ['https://www.youtube.com/shorts/dQw4w9WgXcQ?si=abc','dQw4w9WgXcQ'], ['https://www.youtube.com/embed/dQw4w9WgXcQ','dQw4w9WgXcQ'], ['   dQw4w9WgXcQ   ','dQw4w9WgXcQ'], ['not-a-url-or-id',null], ['short-id',null] ];
+      for(const [inp,exp] of cases){ t(`extractYouTubeId(${JSON.stringify(inp)})`,()=>extractYouTubeId(inp)===exp); }
+      t('coverContainRect stretch',()=>{ const r=coverContainRect(100,50,200,100,'stretch'); return r.dx===0&&r.dy===0&&r.dWidth===200&&r.dHeight===100; });
+      t('coverContainRect contain tall',()=>{ const r=coverContainRect(100,200,200,100,'contain'); return r.dx===50&&r.dy===0&&Math.round(r.dWidth)===100&&Math.round(r.dHeight)===100; });
+      t('coverContainRect cover wide',()=>{ const r=coverContainRect(400,100,200,100,'cover'); return Math.round(r.sWidth)===400&&Math.round(r.sHeight)===100; });
+      document.getElementById('tests').textContent=tests.map(x=>`${x.ok?'✅':'❌'} ${x.n}${x.ok?'':' → '+x.o}`).join('\n'); return tests.every(x=>x.ok);
     }
-
-    // Init
-    draw();
-    runTests();
+    draw(); runTests();
   </script>
 </body>
 </html>
-"""
