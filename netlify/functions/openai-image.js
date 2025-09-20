@@ -34,6 +34,11 @@ function downloadBuffer(urlStr, timeoutMs = 8000){
 }
 
 const ALLOWED_SIZES = new Set(["1024x1024","1024x1536","1536x1024","auto"]);
+const CORS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST,GET,OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type",
+};
 
 async function generateImage({ prompt, size }){
   const body={ model:"gpt-image-1", prompt, size, n:1 };
@@ -62,8 +67,30 @@ async function generateImage({ prompt, size }){
 }
 
 exports.handler = async (event)=>{
-  if(event.httpMethod!=="POST") return { statusCode:405, body:"Method Not Allowed" };
-  if(!process.env.OPENAI_API_KEY) return { statusCode:500, body:"Missing OPENAI_API_KEY env var" };
+  // CORS / preflight
+  if(event.httpMethod === "OPTIONS"){
+    return { statusCode:204, headers:CORS, body:"" };
+  }
+
+  // GET health check (so browsing endpoint shows success)
+  if(event.httpMethod === "GET"){
+    return {
+      statusCode:200,
+      headers: { ...CORS, "Content-Type":"application/json" },
+      body: JSON.stringify({
+        ok: true,
+        hasKey: Boolean(process.env.OPENAI_API_KEY),
+        allowedSizes: Array.from(ALLOWED_SIZES)
+      })
+    };
+  }
+
+  if(event.httpMethod!=="POST"){
+    return { statusCode:405, headers:CORS, body:"Method Not Allowed" };
+  }
+  if(!process.env.OPENAI_API_KEY){
+    return { statusCode:500, headers:CORS, body:"Missing OPENAI_API_KEY env var" };
+  }
 
   try{
     const { prompt, size } = JSON.parse(event.body || "{}");
@@ -75,28 +102,28 @@ exports.handler = async (event)=>{
         const png = await generateImage({ prompt:userPrompt, size:requestedSize });
         return {
           statusCode:200,
-          headers:{ "Content-Type":"image/png", "Cache-Control":"no-store" },
+          headers:{ ...CORS, "Content-Type":"image/png", "Cache-Control":"no-store" },
           body: png.toString("base64"),
           isBase64Encoded:true
         };
       }catch(e){
         const status = e.status || 0;
         const bodyText = e.body || String(e);
-        if(status===401) return { statusCode:401, body:"Invalid or missing API key" };
+        if(status===401) return { statusCode:401, headers:CORS, body:"Invalid or missing API key" };
         if(status===403 && /must be verified/i.test(bodyText)){
-          return { statusCode:403, body:"Org not verified for gpt-image-1 yet. Verify in OpenAI dashboard and retry." };
+          return { statusCode:403, headers:CORS, body:"Org not verified for gpt-image-1 yet. Verify in OpenAI dashboard and retry." };
         }
         if(status===402 || /billing_hard_limit_reached/i.test(bodyText)){
-          return { statusCode:402, body:"OpenAI billing hard limit reached on this account." };
+          return { statusCode:402, headers:CORS, body:"OpenAI billing hard limit reached on this account." };
         }
         if(status && status<500 && status!==429){
-          return { statusCode:Math.max(status,400), body:`OpenAI error ${status}: ${bodyText}` };
+          return { statusCode:Math.max(status,400), headers:CORS, body:`OpenAI error ${status}: ${bodyText}` };
         }
         await sleep(600); // brief backoff then retry once
       }
     }
-    return { statusCode:504, body:"Upstream timed out generating image (try again or use gradient fallback)" };
+    return { statusCode:504, headers:CORS, body:"Upstream timed out generating image (try again or use gradient fallback)" };
   }catch(e){
-    return { statusCode:500, body:String(e) };
+    return { statusCode:500, headers:CORS, body:String(e) };
   }
 };
