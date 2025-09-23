@@ -3,19 +3,6 @@
   command = ""
 
 [functions]
-  directory = "netlify/functions"   # <- THIS must be present
+  directory = "netlify/functions"
   node_bundler = "esbuild"
 
-[functions."img-gen"]
-  timeout = 26
-
-# shortcuts (optional)
-[[redirects]]
-  from = "/api/key-check"
-  to = "/.netlify/functions/key-check"
-  status = 200
-
-[[redirects]]
-  from = "/api/openai-image"
-  to = "/.netlify/functions/img-gen"
-  status = 200
