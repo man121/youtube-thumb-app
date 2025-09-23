@@ -1,40 +1,38 @@
-// netlify/functions/img-gen.js
+// netlify/functions/image-gen.js
 const https = require("https");
 
-// ---- Tunables: keep the whole round-trip under ~10s ----
-const OPENAI_TIMEOUT_MS = 9000;     // single attempt to avoid hanging
-const DOWNLOAD_TIMEOUT_MS = 6000;   // for fetching URL image if returned
-// -------------------------------------------------------
+// ---- Timeouts (keep total under the browser's 18–25s) ----
+const OPENAI_TIMEOUT_MS = 12000;   // OpenAI request
+const DOWNLOAD_TIMEOUT_MS = 8000;  // if OpenAI returns a URL
+// ---------------------------------------------------------
 
 const agent = new https.Agent({ keepAlive: true });
+
+const CORS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST,GET,OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type",
+};
+
+const ALLOWED_SIZES = new Set(["1024x1024", "1024x1536", "1536x1024", "auto"]);
 
 function postJSON({ hostname, path, body, headers = {}, timeoutMs }) {
   const payload = JSON.stringify(body);
   return new Promise((resolve, reject) => {
     const req = https.request(
-      {
-        hostname,
-        path,
-        method: "POST",
-        headers: {
+      { hostname, path, method: "POST", headers: {
           "Content-Type": "application/json",
           "Content-Length": Buffer.byteLength(payload),
-          ...headers,
-        },
-        agent,
-      },
+          ...headers
+        }, agent },
       (res) => {
         let data = "";
         res.on("data", (c) => (data += c));
-        res.on("end", () =>
-          resolve({ status: res.statusCode || 0, body: data })
-        );
+        res.on("end", () => resolve({ status: res.statusCode || 0, body: data }));
       }
     );
     req.on("error", reject);
-    req.setTimeout(timeoutMs, () =>
-      req.destroy(new Error("Upstream request timeout"))
-    );
+    req.setTimeout(timeoutMs, () => req.destroy(new Error("Upstream request timeout")));
     req.write(payload);
     req.end();
   });
@@ -55,21 +53,11 @@ function downloadBuffer(urlStr, timeoutMs) {
       }
     );
     req.on("error", reject);
-    req.setTimeout(timeoutMs, () =>
-      req.destroy(new Error("Download timeout"))
-    );
+    req.setTimeout(timeoutMs, () => req.destroy(new Error("Download timeout")));
   });
 }
 
-const ALLOWED_SIZES = new Set(["1024x1024", "1024x1536", "1536x1024", "auto"]);
-const CORS = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "POST,GET,OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type",
-};
-
 async function generateImage({ prompt, size }) {
-  // Single quick attempt — fail fast so the browser never times out
   const resp = await postJSON({
     hostname: "api.openai.com",
     path: "/v1/images/generations",
@@ -99,7 +87,7 @@ exports.handler = async (event) => {
     return { statusCode: 204, headers: CORS, body: "" };
   }
 
-  // GET health (lets you check quickly in the browser)
+  // GET: health check (open in your browser to verify)
   if (event.httpMethod === "GET") {
     return {
       statusCode: 200,
@@ -108,7 +96,7 @@ exports.handler = async (event) => {
         ok: true,
         hasKey: Boolean(process.env.OPENAI_API_KEY),
         allowedSizes: Array.from(ALLOWED_SIZES),
-        note: "POST to generate; responds fast to avoid client timeouts.",
+        note: "POST with {prompt, size} to generate an image."
       }),
     };
   }
@@ -130,7 +118,12 @@ exports.handler = async (event) => {
 
     return {
       statusCode: 200,
-      headers: { ...CORS, "Content-Type": "image/png", "Cache-Control": "no-store", "X-Elapsed": String(Date.now() - started) },
+      headers: {
+        ...CORS,
+        "Content-Type": "image/png",
+        "Cache-Control": "no-store",
+        "X-Elapsed": String(Date.now() - started)
+      },
       body: png.toString("base64"),
       isBase64Encoded: true,
     };
@@ -138,7 +131,6 @@ exports.handler = async (event) => {
     const status = e.status || 0;
     const bodyText = e.body || String(e);
 
-    // Quick, clear errors (no long hanging)
     if (status === 401) return { statusCode: 401, headers: CORS, body: "Invalid or missing API key" };
     if (status === 403 && /must be verified/i.test(bodyText)) {
       return { statusCode: 403, headers: CORS, body: "Org not verified for gpt-image-1 yet. Verify in OpenAI dashboard and retry." };
@@ -147,7 +139,7 @@ exports.handler = async (event) => {
       return { statusCode: 402, headers: CORS, body: "OpenAI billing hard limit reached on this account." };
     }
     if (String(e).includes("Upstream request timeout")) {
-      return { statusCode: 504, headers: CORS, body: "OpenAI request timed out quickly (fast-fail). Try again or use gradient fallback." };
+      return { statusCode: 504, headers: CORS, body: "OpenAI request timed out (fast-fail). Try again or use gradient fallback." };
     }
     if (status && status < 500 && status !== 429) {
       return { statusCode: Math.max(status, 400), headers: CORS, body: `OpenAI error ${status}: ${bodyText}` };
